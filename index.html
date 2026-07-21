@@ -19,13 +19,15 @@
                 <h1 class="text-2xl font-bold text-blue-600 flex items-center gap-2">
                     📦 ระบบคลังอุปกรณ์ (ระบบจัดการราย S/N)
                 </h1>
-                <p class="text-sm text-slate-500">ติดตามอุปกรณ์แบบรายเครื่อง พร้อมบันทึกวัน-เวลา เบิก/คืน</p>
+                <p class="text-sm text-slate-500">ติดตามอุปกรณ์แบบรายเครื่อง พร้อมระบบสำรองอัตโนมัติและกู้คืนย้อนหลัง</p>
             </div>
             <div class="flex flex-wrap gap-2">
                 <button onclick="openAddModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">➕ เพิ่มอุปกรณ์ใหม่</button>
                 <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">📥 โหลด Excel</button>
+                <button onclick="backupSystemData()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">💾 สำรองลงไฟล์</button>
+                <button onclick="openHistoryModal()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">🕒 ประวัติสำรองออโต้</button>
                 <label class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm cursor-pointer">
-                    📤 นำเข้า Excel <input type="file" id="excelFile" class="hidden" accept=".xlsx, .xls" onchange="importFromExcel(event)">
+                    🔄 กู้คืนจากไฟล์ <input type="file" id="restoreFile" class="hidden" accept=".json" onchange="restoreSystemData(event)">
                 </label>
             </div>
         </header>
@@ -177,6 +179,23 @@
         </div>
     </div>
 
+    <!-- Modal แสดงประวัติสำรองอัตโนมัติ (Auto-Backup History) -->
+    <div id="historyModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-purple-600">🕒 ประวัติสำรองข้อมูลอัตโนมัติ</h3>
+                <button onclick="closeHistoryModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+            <p class="text-xs text-slate-500 mb-3">ระบบเก็บประวัติการเปลี่ยนแปลงล่าสุดโดยอัตโนมัติ สามารถกด "กู้คืนจุดนี้" เพื่อย้อนเวลากลับไปได้ทันทีครับ</p>
+            <div id="historyListContainer" class="max-h-72 overflow-y-auto space-y-2 border rounded-xl p-3 bg-slate-50">
+                <!-- รายการประวัติจะถูกแสดงตรงนี้ -->
+            </div>
+            <div class="mt-4 flex justify-end">
+                <button onclick="closeHistoryModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-medium">ปิด</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal QR Code -->
     <div id="qrModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl max-w-xs w-full p-6 text-center shadow-xl">
@@ -197,12 +216,33 @@
                 month: 'short', 
                 day: 'numeric', 
                 hour: '2-digit', 
-                minute: '2-digit' 
+                minute: '2-digit',
+                second: '2-digit'
             });
+        }
+
+        // ระบบสำรองข้อมูลอัตโนมัติทุกครั้งที่มีการเปลี่ยนแปลงข้อมูล (เก็บประวัติสูงสุด 15 ชุดล่าสุด)
+        function autoBackupData() {
+            let history = JSON.parse(localStorage.getItem('inventoryBackupHistory')) || [];
+            const timestamp = getThaiDateTime();
+            
+            // เพิ่มข้อมูลชุดใหม่เข้าไปที่ตำแหน่งแรกสุด
+            history.unshift({
+                time: timestamp,
+                data: JSON.parse(JSON.stringify(inventory))
+            });
+
+            // จำกัดไม่ให้เก็บประวัติเกิน 15 ชุด เพื่อไม่ให้หน่วยความจำเต็ม
+            if (history.length > 15) {
+                history = history.slice(0, 15);
+            }
+
+            localStorage.setItem('inventoryBackupHistory', JSON.stringify(history));
         }
 
         function saveData() {
             localStorage.setItem('inventoryDataV4', JSON.stringify(inventory));
+            autoBackupData(); // สั่งรันสำรองอัตโนมัติทุกครั้งที่บันทึกข้อมูล
             renderTable();
         }
 
@@ -427,6 +467,94 @@
             document.getElementById('qrModal').classList.add('hidden'); 
         }
 
+        // แสดงหน้าต่างประวัติสำรองอัตโนมัติ
+        function openHistoryModal() {
+            const history = JSON.parse(localStorage.getItem('inventoryBackupHistory')) || [];
+            const container = document.getElementById('historyListContainer');
+            container.innerHTML = "";
+
+            if (history.length === 0) {
+                container.innerHTML = `<p class="text-center text-slate-400 py-4 text-sm">ยังไม่มีประวัติการสำรองอัตโนมัติ</p>`;
+            } else {
+                history.forEach((item, index) => {
+                    container.innerHTML += `
+                        <div class="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                            <div>
+                                <span class="text-xs font-bold text-purple-700">จุดสำรองที่ #${index + 1}</span>
+                                <div class="text-xs text-slate-500">📅 ${item.time} (${item.data.length} รายการ)</div>
+                            </div>
+                            <button onclick="restoreAutoBackup(${index})" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-medium transition">กู้คืนจุดนี้</button>
+                        </div>
+                    `;
+                });
+            }
+            document.getElementById('historyModal').classList.remove('hidden');
+        }
+
+        function closeHistoryModal() {
+            document.getElementById('historyModal').classList.add('hidden');
+        }
+
+        // กู้คืนข้อมูลจากประวัติอัตโนมัติที่เลือก
+        function restoreAutoBackup(index) {
+            const history = JSON.parse(localStorage.getItem('inventoryBackupHistory')) || [];
+            if (history[index]) {
+                if (confirm(`⚠️ ต้องการกู้คืนข้อมูลย้อนหลังไปยังเวลา [ ${history[index].time} ] ใช่หรือไม่?`)) {
+                    inventory = history[index].data;
+                    localStorage.setItem('inventoryDataV4', JSON.stringify(inventory));
+                    renderTable();
+                    closeHistoryModal();
+                    alert("✅ กู้คืนข้อมูลสำเร็จเรียบร้อยแล้ว!");
+                }
+            }
+        }
+
+        // สำรองข้อมูลออกเป็นไฟล์ .json (สำรองแบบ Manual เสริม)
+        function backupSystemData() {
+            if (inventory.length === 0) {
+                alert("⚠️ ไม่มีข้อมูลในระบบสำหรับสำรอง");
+                return;
+            }
+            const now = new Date();
+            const timestampStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}`;
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(inventory, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `Inventory_Backup_${timestampStr}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        // กู้คืนข้อมูลจากไฟล์สำรองภายนอก (.json)
+        function restoreSystemData(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (confirm("⚠️ การกู้คืนข้อมูลจะแทนที่ข้อมูลปัจจุบันทั้งหมด ต้องการดำเนินการต่อหรือไม่?")) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    try {
+                        const parsedData = JSON.parse(evt.target.result);
+                        if (Array.isArray(parsedData)) {
+                            inventory = parsedData;
+                            saveData();
+                            alert("✅ กู้คืนข้อมูลจากไฟล์สำเร็จเรียบร้อยแล้ว!");
+                        } else {
+                            alert("❌ ไฟล์สำรองไม่ถูกต้อง");
+                        }
+                    } catch (err) {
+                        alert("❌ เกิดข้อผิดพลาดในการอ่านไฟล์สำรอง");
+                    }
+                    e.target.value = "";
+                };
+                reader.readAsText(file);
+            } else {
+                e.target.value = "";
+            }
+        }
+
         function exportToExcel() {
             if (inventory.length === 0) {
                 alert("⚠️ ไม่มีข้อมูลสำหรับส่งออก");
@@ -436,29 +564,6 @@
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Inventory");
             XLSX.writeFile(wb, "Inventory_SN_Report.xlsx");
-        }
-
-        function importFromExcel(e) {
-            const file = e.target.files[0];
-            if(!file) return;
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                try {
-                    const data = new Uint8Array(evt.target.result);
-                    const wb = XLSX.read(data, {type: 'array'});
-                    const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-                    if(json.length > 0) { 
-                        inventory = json;
-                        saveData(); 
-                        alert("📤 นำเข้าข้อมูลสำเร็จ!"); 
-                    } else {
-                        alert("⚠️ ไม่พบข้อมูลในไฟล์ Excel ที่เลือก");
-                    }
-                } catch (err) {
-                    alert("❌ เกิดข้อผิดพลาดในการอ่านไฟล์ Excel");
-                }
-            };
-            reader.readAsArrayBuffer(file);
         }
 
         // เริ่มต้นรันแสดงตาราง
