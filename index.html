@@ -206,7 +206,6 @@
             renderTable();
         }
 
-        // ฟังก์ชันคลิกกล่อง Dashboard เพื่อกรองสถานะทันที
         function filterByCard(status) {
             document.getElementById('statusFilter').value = status === 'all' ? '' : status;
             renderTable();
@@ -223,15 +222,21 @@
 
         function renderTable() {
             const tbody = document.getElementById('inventoryTableBody');
-            const search = document.getElementById('searchInput').value.toLowerCase();
-            const catFilter = document.getElementById('categoryFilter').value;
-            const statusFilter = document.getElementById('statusFilter').value;
+            const searchInput = document.getElementById('searchInput');
+            const categoryFilter = document.getElementById('categoryFilter');
+            const statusFilter = document.getElementById('statusFilter');
+
+            if (!tbody || !searchInput || !categoryFilter || !statusFilter) return;
+
+            const search = searchInput.value.toLowerCase();
+            const catFilter = categoryFilter.value;
+            const statFilter = statusFilter.value;
             tbody.innerHTML = '';
 
             const filtered = inventory.filter(item => {
                 const matchSearch = item.name.toLowerCase().includes(search) || item.sn.toLowerCase().includes(search) || (item.holder && item.holder.toLowerCase().includes(search));
                 const matchCat = catFilter === "" || item.category === catFilter;
-                const matchStatus = statusFilter === "" || item.status === statusFilter;
+                const matchStatus = statFilter === "" || item.status === statFilter;
                 return matchSearch && matchCat && matchStatus;
             });
 
@@ -299,7 +304,6 @@
             const item = inventory[idx];
             document.getElementById('transIndex').value = idx;
             document.getElementById('transMode').value = mode;
-            
             document.getElementById('transItemInfo').innerText = `[${item.sn}] - ${item.name}`;
             
             if (mode === 'borrow') {
@@ -355,7 +359,9 @@
             document.getElementById('itemModal').classList.remove('hidden');
         }
 
-        function closeModal() { document.getElementById('itemModal').classList.add('hidden'); }
+        function closeModal() { 
+            document.getElementById('itemModal').classList.add('hidden'); 
+        }
 
         function editItem(idx) {
             const item = inventory[idx];
@@ -365,23 +371,26 @@
             document.getElementById('itemName').value = item.name;
             document.getElementById('itemCategory').value = item.category;
             document.getElementById('itemStatus').value = item.status;
-            document.getElementById('itemModal').classList.add('hidden'); // Fix typo
             document.getElementById('itemModal').classList.remove('hidden');
         }
 
         function saveItem(e) {
             e.preventDefault();
-            const idx = document.getElementById('itemIndex').value;
+            const idxStr = document.getElementById('itemIndex').value;
             const rawSn = document.getElementById('itemSn').value;
+            const name = document.getElementById('itemName').value;
+            const category = document.getElementById('itemCategory').value;
+            const status = document.getElementById('itemStatus').value;
+
             const snList = rawSn.split(',').map(s => s.trim()).filter(s => s !== ""); 
             
-            if (idx === "") {
+            if (idxStr === "") {
                 snList.forEach(sn => {
                     inventory.push({
                         sn: sn,
-                        name: document.getElementById('itemName').value,
-                        category: document.getElementById('itemCategory').value,
-                        status: document.getElementById('itemStatus').value,
+                        name: name,
+                        category: category,
+                        status: status,
                         holder: "คลังหลัก",
                         note: "",
                         borrowDate: "",
@@ -389,10 +398,11 @@
                     });
                 });
             } else {
+                const idx = parseInt(idxStr);
                 inventory[idx].sn = snList[0]; 
-                inventory[idx].name = document.getElementById('itemName'].value;
-                inventory[idx].category = document.getElementById('itemCategory').value;
-                inventory[idx].status = document.getElementById('itemStatus').value;
+                inventory[idx].name = name;
+                inventory[idx].category = category;
+                inventory[idx].status = status;
             }
 
             saveData();
@@ -412,9 +422,16 @@
             new QRCode(document.getElementById("qrcode"), { text: `S/N:${sn}|Name:${name}`, width: 140, height: 140 });
             document.getElementById('qrModal').classList.remove('hidden');
         }
-        function closeQrModal() { document.getElementById('qrModal').classList.add('hidden'); }
+        
+        function closeQrModal() { 
+            document.getElementById('qrModal').classList.add('hidden'); 
+        }
 
         function exportToExcel() {
+            if (inventory.length === 0) {
+                alert("⚠️ ไม่มีข้อมูลสำหรับส่งออก");
+                return;
+            }
             const ws = XLSX.utils.json_to_sheet(inventory);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Inventory");
@@ -426,18 +443,25 @@
             if(!file) return;
             const reader = new FileReader();
             reader.onload = function(evt) {
-                const data = new Uint8Array(evt.target.result);
-                const wb = XLSX.read(data, {type: 'array'});
-                const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-                if(json.length > 0) { 
-                    inventory = json;
-                    saveData(); 
-                    alert("📤 นำเข้าข้อมูลสำเร็จ!"); 
+                try {
+                    const data = new Uint8Array(evt.target.result);
+                    const wb = XLSX.read(data, {type: 'array'});
+                    const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                    if(json.length > 0) { 
+                        inventory = json;
+                        saveData(); 
+                        alert("📤 นำเข้าข้อมูลสำเร็จ!"); 
+                    } else {
+                        alert("⚠️ ไม่พบข้อมูลในไฟล์ Excel ที่เลือก");
+                    }
+                } catch (err) {
+                    alert("❌ เกิดข้อผิดพลาดในการอ่านไฟล์ Excel");
                 }
             };
             reader.readAsArrayBuffer(file);
         }
 
+        // เริ่มต้นรันแสดงตาราง
         renderTable();
     </script>
 </body>
