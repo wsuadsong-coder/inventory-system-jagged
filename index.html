@@ -30,6 +30,31 @@
             </div>
         </header>
 
+        <!-- Dashboard Summary (ส่วนที่เพิ่มเข้ามาใหม่) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-white shadow-sm rounded-2xl p-5 border-l-4 border-slate-700 flex flex-col justify-center">
+                <span class="text-sm font-semibold text-slate-500 mb-1">อุปกรณ์ทั้งหมดในระบบ</span>
+                <div class="flex items-end gap-2">
+                    <span id="sumTotal" class="text-3xl font-bold text-slate-800">0</span>
+                    <span class="text-slate-500 mb-1">ชิ้น</span>
+                </div>
+            </div>
+            <div class="bg-white shadow-sm rounded-2xl p-5 border-l-4 border-emerald-500 flex flex-col justify-center">
+                <span class="text-sm font-semibold text-slate-500 mb-1">📦 คงเหลือในคลัง (พร้อมจ่าย)</span>
+                <div class="flex items-end gap-2">
+                    <span id="sumStock" class="text-3xl font-bold text-emerald-600">0</span>
+                    <span class="text-emerald-600/70 mb-1">ชิ้น</span>
+                </div>
+            </div>
+            <div class="bg-white shadow-sm rounded-2xl p-5 border-l-4 border-blue-500 flex flex-col justify-center">
+                <span class="text-sm font-semibold text-slate-500 mb-1">🔄 กำลังถูกเบิกใช้งาน</span>
+                <div class="flex items-end gap-2">
+                    <span id="sumBorrowed" class="text-3xl font-bold text-blue-600">0</span>
+                    <span class="text-blue-600/70 mb-1">ชิ้น</span>
+                </div>
+            </div>
+        </div>
+
         <!-- Search & Filter Bar -->
         <div class="bg-white shadow-sm rounded-2xl p-4 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
             <div class="w-full md:w-1/3">
@@ -167,7 +192,6 @@
     </div>
 
     <script>
-        // โครงสร้างข้อมูลใหม่แยก stock (คงเหลือ) และ borrowed (กำลังเบิกใช้งาน)
         let inventory = JSON.parse(localStorage.getItem('inventoryDataV2')) || [
             { sn: "TEL-01", name: "IP Phone Cisco", category: "โทรศัพท์", stock: 3, borrowed: 2, status: "ปกติ", holder: "ร.ต.อ. สมชาย" },
             { sn: "CAM-01", name: "IP Camera Outdoor", category: "กล้อง", stock: 5, borrowed: 0, status: "ปกติ", holder: "คลังหลัก" }
@@ -178,7 +202,24 @@
             renderTable();
         }
 
+        // ฟังก์ชันคำนวณและอัปเดตยอดรวมใน Dashboard
+        function updateDashboard() {
+            let totalStock = 0;
+            let totalBorrowed = 0;
+
+            inventory.forEach(item => {
+                totalStock += (item.stock || 0);
+                totalBorrowed += (item.borrowed || 0);
+            });
+
+            document.getElementById('sumStock').innerText = totalStock.toLocaleString();
+            document.getElementById('sumBorrowed').innerText = totalBorrowed.toLocaleString();
+            document.getElementById('sumTotal').innerText = (totalStock + totalBorrowed).toLocaleString();
+        }
+
         function renderTable() {
+            updateDashboard(); // อัปเดตยอดสรุปทุกครั้งที่โหลดตาราง
+
             const tbody = document.getElementById('inventoryTableBody');
             const search = document.getElementById('searchInput').value.toLowerCase();
             const catFilter = document.getElementById('categoryFilter').value;
