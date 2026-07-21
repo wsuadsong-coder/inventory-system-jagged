@@ -40,7 +40,18 @@
             <div class="w-full md:w-1/3">
                 <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="🔍 ค้นหาชื่ออุปกรณ์, S/N, หรือผู้รับผิดชอบ..." class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
             </div>
-            <div class="flex gap-4 w-full md:w-auto">
+            <div class="flex flex-wrap gap-3 w-full md:w-auto">
+                <!-- กรองตามหมวดหมู่ -->
+                <select id="categoryFilter" onchange="filterTable()" class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    <option value="">หมวดหมู่ทั้งหมด</option>
+                    <option value="โทรศัพท์">โทรศัพท์</option>
+                    <option value="ประตู">ประตู</option>
+                    <option value="กล้อง">กล้อง</option>
+                    <option value="เน็ตเวิร์ค">เน็ตเวิร์ค</option>
+                    <option value="เครื่องมือช่าง">เครื่องมือช่าง</option>
+                    <option value="อื่นๆ">อื่นๆ</option>
+                </select>
+                <!-- กรองตามสถานะ -->
                 <select id="statusFilter" onchange="filterTable()" class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                     <option value="">สถานะทั้งหมด</option>
                     <option value="ปกติ">ปกติ (พร้อมใช้)</option>
@@ -92,7 +103,14 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">หมวดหมู่</label>
-                            <input type="text" id="itemCategory" placeholder="เช่น ไอที, เครื่องมือช่าง" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+                            <select id="itemCategory" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+                                <option value="โทรศัพท์">โทรศัพท์</option>
+                                <option value="ประตู">ประตู</option>
+                                <option value="กล้อง">กล้อง</option>
+                                <option value="เน็ตเวิร์ค">เน็ตเวิร์ค</option>
+                                <option value="เครื่องมือช่าง">เครื่องมือช่าง</option>
+                                <option value="อื่นๆ">อื่นๆ</option>
+                            </select>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">จำนวน</label>
@@ -137,10 +155,10 @@
     </div>
 
     <script>
-        // ข้อมูลตัวอย่างเริ่มต้น (เก็บใน LocalStorage ของเบราว์เซอร์)
+        // ข้อมูลตัวอย่างเริ่มต้น
         let inventory = JSON.parse(localStorage.getItem('inventoryData')) || [
-            { sn: "IT-001", name: "Notebook Dell Latitude", category: "ไอที", qty: 1, status: "กำลังใช้งาน", holder: "ร.ต.อ. สมชาย", image: "" },
-            { sn: "TOOL-012", name: "สว่านกระแทกไร้สาย", category: "เครื่องมือช่าง", qty: 2, status: "ปกติ", holder: "คลังหลัก ชั้น 1", image: "" }
+            { sn: "NET-001", name: "Cisco Switch 24 Port", category: "เน็ตเวิร์ค", qty: 1, status: "กำลังใช้งาน", holder: "ห้อง Server", image: "" },
+            { sn: "CAM-05", name: "IP Camera Outdoor", category: "กล้อง", qty: 4, status: "ปกติ", holder: "คลังหลัก", image: "" }
         ];
 
         function saveData() {
@@ -151,23 +169,24 @@
         function renderTable() {
             const tbody = document.getElementById('inventoryTableBody');
             const search = document.getElementById('searchInput').value.toLowerCase();
+            const categoryFilter = document.getElementById('categoryFilter').value;
             const statusFilter = document.getElementById('statusFilter').value;
             
             tbody.innerHTML = '';
 
-            const filtered = inventory.filter((item, index) => {
+            const filtered = inventory.filter((item) => {
                 const matchSearch = item.name.toLowerCase().includes(search) || item.sn.toLowerCase().includes(search) || item.holder.toLowerCase().includes(search);
+                const matchCategory = categoryFilter === "" || item.category === categoryFilter;
                 const matchStatus = statusFilter === "" || item.status === statusFilter;
-                return matchSearch && matchStatus;
+                return matchSearch && matchCategory && matchStatus;
             });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center p-6 text-gray-400">ไม่พบข้อมูลอุปกรณ์</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center p-6 text-gray-400">ไม่พบข้อมูลอุปกรณ์ตามเงื่อนไข</td></tr>`;
                 return;
             }
 
-            filtered.forEach((item, index) => {
-                // หารายการจริงใน array หลัก
+            filtered.forEach((item) => {
                 const originalIndex = inventory.indexOf(item);
                 
                 let statusBadge = '';
@@ -180,7 +199,7 @@
                         <td class="p-3">${originalIndex + 1}</td>
                         <td class="p-3 font-medium text-blue-600">${item.sn}</td>
                         <td class="p-3">${item.name}</td>
-                        <td class="p-3">${item.category || '-'}</td>
+                        <td class="p-3"><span class="px-2.5 py-1 bg-gray-100 rounded text-xs font-medium text-gray-600">${item.category || 'อื่นๆ'}</span></td>
                         <td class="p-3 text-center">${item.qty}</td>
                         <td class="p-3"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge}">${item.status}</span></td>
                         <td class="p-3">${item.holder || '-'}</td>
@@ -215,7 +234,7 @@
             document.getElementById('itemIndex').value = index;
             document.getElementById('itemSn').value = item.sn;
             document.getElementById('itemName').value = item.name;
-            document.getElementById('itemCategory').value = item.category;
+            document.getElementById('itemCategory').value = item.category || "อื่นๆ";
             document.getElementById('itemQty').value = item.qty;
             document.getElementById('itemStatus').value = item.status;
             document.getElementById('itemHolder').value = item.holder;
