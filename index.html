@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบบริหารจัดการสถานภาพอุปกรณ์ในคลัง</title>
+    <!-- Tailwind CSS สำหรับตกแต่ง UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS สำหรับ Export/Import Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- QRCode Generator -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Header -->
+        <header class="bg-white shadow rounded-xl p-6 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-blue-600 flex items-center gap-2">
+                    📦 ระบบบริหารจัดการสถานภาพอุปกรณ์ในคลัง
+                </h1>
+                <p class="text-sm text-gray-500">บันทึก ตรวจสอบ สถานะ เบิก-จ่าย และออก QR Code อุปกรณ์</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="openAddModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow">➕ เพิ่มอุปกรณ์ใหม่</button>
+                <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow">📥 ดาวน์โหลด Excel</button>
+                <label class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow cursor-pointer">
+                    📤 นำเข้า Excel <input type="file" id="excelFile" class="hidden" accept=".xlsx, .xls" onchange="importFromExcel(event)">
+                </label>
+            </div>
+        </header>
+
+        <!-- Search & Filter Bar -->
+        <div class="bg-white shadow rounded-xl p-4 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div class="w-full md:w-1/3">
+                <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="🔍 ค้นหาชื่ออุปกรณ์, S/N, หรือผู้รับผิดชอบ..." class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+            </div>
+            <div class="flex gap-4 w-full md:w-auto">
+                <select id="statusFilter" onchange="filterTable()" class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    <option value="">สถานะทั้งหมด</option>
+                    <option value="ปกติ">ปกติ (พร้อมใช้)</option>
+                    <option value="กำลังใช้งาน">กำลังใช้งาน</option>
+                    <option value="ส่งซ่อม/ชำรุด">ส่งซ่อม/ชำรุด</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Inventory Table -->
+        <div class="bg-white shadow rounded-xl overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-100 text-gray-600 text-sm uppercase tracking-wider">
+                            <th class="p-3">ลำดับ</th>
+                            <th class="p-3">S/N / รหัส</th>
+                            <th class="p-3">ชื่ออุปกรณ์</th>
+                            <th class="p-3">หมวดหมู่</th>
+                            <th class="p-3 text-center">คงเหลือ</th>
+                            <th class="p-3">สถานะ</th>
+                            <th class="p-3">ผู้เบิก/สถานที่</th>
+                            <th class="p-3 text-center">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventoryTableBody" class="divide-y divide-gray-200 text-sm">
+                        <!-- โหลดข้อมูลด้วย JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal เพิ่ม/แก้ไข อุปกรณ์ -->
+    <div id="itemModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-2xl">
+            <h3 id="modalTitle" class="text-xl font-bold mb-4 text-blue-600">เพิ่มอุปกรณ์ใหม่</h3>
+            <form id="itemForm" onsubmit="saveItem(event)">
+                <input type="hidden" id="itemIndex">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">S/N หรือ รหัสทรัพย์สิน</label>
+                        <input type="text" id="itemSn" required class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ชื่ออุปกรณ์</label>
+                        <input type="text" id="itemName" required class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">หมวดหมู่</label>
+                            <input type="text" id="itemCategory" placeholder="เช่น ไอที, เครื่องมือช่าง" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">จำนวน</label>
+                            <input type="number" id="itemQty" value="1" min="1" required class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">สถานะ</label>
+                            <select id="itemStatus" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+                                <option value="ปกติ">ปกติ (พร้อมใช้)</option>
+                                <option value="กำลังใช้งาน">กำลังใช้งาน</option>
+                                <option value="ส่งซ่อม/ชำรุด">ส่งซ่อม/ชำรุด</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">ผู้เบิก / สถานที่เก็บ</label>
+                            <input type="text" id="itemHolder" placeholder="ชื่อผู้เบิก หรือ โซนคลัง" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">แนบรูปภาพอุปกรณ์/ความเสียหาย</label>
+                        <input type="file" id="itemImage" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-medium">ยกเลิก</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">บันทึก</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal QR Code -->
+    <div id="qrModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl max-w-sm w-full p-6 text-center shadow-2xl">
+            <h3 class="text-xl font-bold mb-2 text-blue-600">QR Code ประจำอุปกรณ์</h3>
+            <p id="qrItemName" class="text-sm text-gray-500 mb-4"></p>
+            <div id="qrcode" class="flex justify-center p-4 bg-gray-50 border rounded-lg mb-4"></div>
+            <button onclick="closeQrModal()" class="w-full py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-medium">ปิด</button>
+        </div>
+    </div>
+
+    <script>
+        // ข้อมูลตัวอย่างเริ่มต้น (เก็บใน LocalStorage ของเบราว์เซอร์)
+        let inventory = JSON.parse(localStorage.getItem('inventoryData')) || [
+            { sn: "IT-001", name: "Notebook Dell Latitude", category: "ไอที", qty: 1, status: "กำลังใช้งาน", holder: "ร.ต.อ. สมชาย", image: "" },
+            { sn: "TOOL-012", name: "สว่านกระแทกไร้สาย", category: "เครื่องมือช่าง", qty: 2, status: "ปกติ", holder: "คลังหลัก ชั้น 1", image: "" }
+        ];
+
+        function saveData() {
+            localStorage.setItem('inventoryData', JSON.stringify(inventory));
+            renderTable();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('inventoryTableBody');
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+            
+            tbody.innerHTML = '';
+
+            const filtered = inventory.filter((item, index) => {
+                const matchSearch = item.name.toLowerCase().includes(search) || item.sn.toLowerCase().includes(search) || item.holder.toLowerCase().includes(search);
+                const matchStatus = statusFilter === "" || item.status === statusFilter;
+                return matchSearch && matchStatus;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center p-6 text-gray-400">ไม่พบข้อมูลอุปกรณ์</td></tr>`;
+                return;
+            }
+
+            filtered.forEach((item, index) => {
+                // หารายการจริงใน array หลัก
+                const originalIndex = inventory.indexOf(item);
+                
+                let statusBadge = '';
+                if(item.status === 'ปกติ') statusBadge = 'bg-green-100 text-green-700';
+                else if(item.status === 'กำลังใช้งาน') statusBadge = 'bg-blue-100 text-blue-700';
+                else statusBadge = 'bg-red-100 text-red-700';
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="p-3">${originalIndex + 1}</td>
+                        <td class="p-3 font-medium text-blue-600">${item.sn}</td>
+                        <td class="p-3">${item.name}</td>
+                        <td class="p-3">${item.category || '-'}</td>
+                        <td class="p-3 text-center">${item.qty}</td>
+                        <td class="p-3"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge}">${item.status}</span></td>
+                        <td class="p-3">${item.holder || '-'}</td>
+                        <td class="p-3 text-center flex justify-center gap-2">
+                            <button onclick="showQRCode('${item.sn}', '${item.name}')" class="p-1.5 bg-gray-100 hover:bg-gray-200 rounded text-gray-600" title="พิมพ์ QR">🖨️</button>
+                            <button onclick="editItem(${originalIndex})" class="p-1.5 bg-amber-50 hover:bg-amber-100 rounded text-amber-600" title="แก้ไข">✏️</button>
+                            <button onclick="deleteItem(${originalIndex})" class="p-1.5 bg-red-50 hover:bg-red-100 rounded text-red-600" title="ลบ">🗑️</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function filterTable() {
+            renderTable();
+        }
+
+        function openAddModal() {
+            document.getElementById('modalTitle').innerText = "เพิ่มอุปกรณ์ใหม่";
+            document.getElementById('itemIndex').value = "";
+            document.getElementById('itemForm').reset();
+            document.getElementById('itemModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('itemModal').classList.add('hidden');
+        }
+
+        function editItem(index) {
+            const item = inventory[index];
+            document.getElementById('modalTitle').innerText = "แก้ไขข้อมูลอุปกรณ์";
+            document.getElementById('itemIndex').value = index;
+            document.getElementById('itemSn').value = item.sn;
+            document.getElementById('itemName').value = item.name;
+            document.getElementById('itemCategory').value = item.category;
+            document.getElementById('itemQty').value = item.qty;
+            document.getElementById('itemStatus').value = item.status;
+            document.getElementById('itemHolder').value = item.holder;
+            document.getElementById('itemModal').classList.remove('hidden');
+        }
+
+        function saveItem(event) {
+            event.preventDefault();
+            const index = document.getElementById('itemIndex').value;
+            const imageInput = document.getElementById('itemImage');
+            
+            const processSave = (imageUrl) => {
+                const itemData = {
+                    sn: document.getElementById('itemSn').value,
+                    name: document.getElementById('itemName').value,
+                    category: document.getElementById('itemCategory').value,
+                    qty: parseInt(document.getElementById('itemQty').value),
+                    status: document.getElementById('itemStatus').value,
+                    holder: document.getElementById('itemHolder').value,
+                    image: imageUrl || (index !== "" ? inventory[index].image : "")
+                };
+
+                if (index === "") {
+                    inventory.push(itemData);
+                } else {
+                    inventory[index] = itemData;
+                }
+
+                saveData();
+                closeModal();
+            };
+
+            if (imageInput.files && imageInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    processSave(e.target.result);
+                };
+                reader.readAsDataURL(imageInput.files[0]);
+            } else {
+                processSave(null);
+            }
+        }
+
+        function deleteItem(index) {
+            if (confirm("คุณต้องการลบอุปกรณ์ชิ้นนี้ออกจากระบบใช่หรือไม่?")) {
+                inventory.splice(index, 1);
+                saveData();
+            }
+        }
+
+        // QR Code Generator
+        function showQRCode(sn, name) {
+            document.getElementById('qrItemName').innerText = `${name} (S/N: ${sn})`;
+            document.getElementById('qrcode').innerHTML = "";
+            new QRCode(document.getElementById("qrcode"), {
+                text: `S/N: ${sn} - ${name}`,
+                width: 150,
+                height: 150
+            });
+            document.getElementById('qrModal').classList.remove('hidden');
+        }
+
+        function closeQrModal() {
+            document.getElementById('qrModal').classList.add('hidden');
+        }
+
+        // Export Excel
+        function exportToExcel() {
+            const worksheet = XLSX.utils.json_to_sheet(inventory);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Inventory");
+            XLSX.writeFile(workbook, "Inventory_Report.xlsx");
+        }
+
+        // Import Excel
+        function importFromExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                if (jsonData.length > 0) {
+                    inventory = jsonData;
+                    saveData();
+                    alert("นำเข้าข้อมูลสำเร็จ!");
+                } else {
+                    alert("ไม่พบข้อมูลในไฟล์ Excel");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // โหลดตารางครั้งแรก
+        renderTable();
+    </script>
+</body>
+</html>
