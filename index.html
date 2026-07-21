@@ -19,7 +19,7 @@
                 <h1 class="text-2xl font-bold text-blue-600 flex items-center gap-2">
                     📦 ระบบคลังอุปกรณ์ (ระบบจัดการราย S/N)
                 </h1>
-                <p class="text-sm text-slate-500">ติดตามอุปกรณ์แบบรายเครื่อง 1 แถว ต่อ 1 Serial Number</p>
+                <p class="text-sm text-slate-500">ติดตามอุปกรณ์แบบรายเครื่อง พร้อมบันทึกวัน-เวลา เบิก/คืน</p>
             </div>
             <div class="flex flex-wrap gap-2">
                 <button onclick="openAddModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">➕ เพิ่มอุปกรณ์ใหม่</button>
@@ -88,7 +88,6 @@
                             <th class="p-4">ลำดับ</th>
                             <th class="p-4">รหัส / S/N</th>
                             <th class="p-4">ชื่ออุปกรณ์</th>
-                            <th class="p-4">หมวดหมู่</th>
                             <th class="p-4 text-center">สถานะ</th>
                             <th class="p-4">ผู้ถือครองปัจจุบัน</th>
                             <th class="p-4">หมายเหตุ</th>
@@ -111,7 +110,7 @@
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">รหัส / S/N อุปกรณ์ <span class="text-xs text-blue-500 font-normal">(ใส่ลูกน้ำ , คั่นเพื่อเพิ่มหลายเครื่องพร้อมกันได้)</span></label>
-                        <input type="text" id="itemSn" placeholder="เช่น TEL-01, TEL-02, TEL-03" required class="w-full px-3 py-2 border rounded-xl text-sm">
+                        <input type="text" id="itemSn" placeholder="เช่น TEL-01, TEL-02" required class="w-full px-3 py-2 border rounded-xl text-sm">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">ชื่ออุปกรณ์</label>
@@ -157,11 +156,11 @@
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1" id="nameLabel">ชื่อผู้เบิก / หน่วยงาน</label>
-                        <input type="text" id="transName" placeholder="เช่น ร.ต.อ. สมชาย" required class="w-full px-3 py-2 border rounded-xl text-sm">
+                        <input type="text" id="transName" placeholder="เช่น วิทวัส" required class="w-full px-3 py-2 border rounded-xl text-sm">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">หมายเหตุ / วัตถุประสงค์</label>
-                        <input type="text" id="transNote" placeholder="เช่น นำไปติดตั้งจุดตรวจ A" class="w-full px-3 py-2 border rounded-xl text-sm">
+                        <input type="text" id="transNote" placeholder="ระบุเพิ่มเติม (ถ้ามี)" class="w-full px-3 py-2 border rounded-xl text-sm">
                     </div>
                 </div>
                 <div class="mt-6 flex justify-end gap-2">
@@ -183,15 +182,23 @@
     </div>
 
     <script>
-        // โครงสร้างข้อมูลแบบรายชิ้น (Instance-based)
-        let inventory = JSON.parse(localStorage.getItem('inventoryDataV3')) || [
-            { sn: "TEL-001", name: "IP Phone Cisco", category: "โทรศัพท์", status: "ในคลัง", holder: "คลังหลัก", note: "" },
-            { sn: "TEL-002", name: "IP Phone Cisco", category: "โทรศัพท์", status: "ถูกเบิก", holder: "ร.ต.อ. สมชาย", note: "ห้องประชุม" },
-            { sn: "CAM-001", name: "IP Camera Outdoor", category: "กล้อง", status: "ในคลัง", holder: "คลังหลัก", note: "" }
-        ];
+        // โครงสร้างข้อมูลแบบรายชิ้น (เพิ่มฟิลด์ borrowDate, returnDate)
+        let inventory = JSON.parse(localStorage.getItem('inventoryDataV4')) || [];
+
+        // ดึงเวลาปัจจุบันในรูปแบบภาษาไทย
+        function getThaiDateTime() {
+            const now = new Date();
+            return now.toLocaleDateString('th-TH', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+        }
 
         function saveData() {
-            localStorage.setItem('inventoryDataV3', JSON.stringify(inventory));
+            localStorage.setItem('inventoryDataV4', JSON.stringify(inventory));
             renderTable();
         }
 
@@ -221,38 +228,50 @@
             });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="text-center p-6 text-slate-400">ไม่พบข้อมูลอุปกรณ์ตามเงื่อนไข</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center p-6 text-slate-400">ไม่พบข้อมูลอุปกรณ์ตามเงื่อนไข</td></tr>`;
                 return;
             }
 
             filtered.forEach((item) => {
                 const idx = inventory.indexOf(item);
                 
-                // การจัดการสีของ Badge สถานะ
                 let badge = '';
                 if(item.status === 'ในคลัง') badge = 'bg-emerald-100 text-emerald-700';
                 else if(item.status === 'ถูกเบิก') badge = 'bg-blue-100 text-blue-700';
                 else badge = 'bg-rose-100 text-rose-700';
 
-                // ควบคุมปุ่มเบิก-คืน ตามสถานะปัจจุบัน
                 let actionBtn = '';
                 if(item.status === 'ในคลัง') {
-                    actionBtn = `<button onclick="openTransModal(${idx}, 'borrow')" class="px-4 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-semibold border border-blue-200 transition">📤 เบิกของ</button>`;
+                    actionBtn = `<button onclick="openTransModal(${idx}, 'borrow')" class="px-4 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-semibold border border-blue-200 transition shadow-sm">📤 เบิกของ</button>`;
                 } else if(item.status === 'ถูกเบิก') {
-                    actionBtn = `<button onclick="openTransModal(${idx}, 'return')" class="px-4 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg text-xs font-semibold border border-emerald-200 transition">📥 รับคืน</button>`;
+                    actionBtn = `<button onclick="openTransModal(${idx}, 'return')" class="px-4 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg text-xs font-semibold border border-emerald-200 transition shadow-sm">📥 รับคืน</button>`;
                 } else {
                     actionBtn = `<span class="text-xs text-slate-400">- ส่งซ่อม -</span>`;
+                }
+
+                // 🌟 ส่วนแสดงผลผู้ถือครอง + วันที่ยืม
+                let holderDisplay = `<span class="text-slate-800 font-medium">${item.holder}</span>`;
+                if (item.status === 'ถูกเบิก' && item.borrowDate) {
+                    holderDisplay += `<br><span class="text-xs text-blue-500 font-normal">📅 ยืม: ${item.borrowDate}</span>`;
+                }
+
+                // 🌟 ส่วนแสดงผลหมายเหตุ + วันที่คืน
+                let noteDisplay = item.note ? `<span class="text-slate-600">${item.note}</span>` : '<span class="text-slate-400">-</span>';
+                if (item.status === 'ในคลัง' && item.returnDate) {
+                    noteDisplay += `<br><span class="text-xs text-emerald-600 font-normal">🕒 คืน: ${item.returnDate}</span>`;
                 }
 
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50/50 transition">
                         <td class="p-4 text-slate-500">${idx + 1}</td>
                         <td class="p-4 font-bold text-blue-700">${item.sn}</td>
-                        <td class="p-4">${item.name}</td>
-                        <td class="p-4"><span class="px-2.5 py-1 bg-slate-100 rounded-lg text-xs text-slate-600">${item.category}</span></td>
+                        <td class="p-4">
+                            ${item.name}
+                            <div class="text-xs text-slate-400 mt-0.5">${item.category}</div>
+                        </td>
                         <td class="p-4 text-center"><span class="px-3 py-1 rounded-full text-xs font-semibold ${badge}">${item.status}</span></td>
-                        <td class="p-4 text-slate-800 font-medium">${item.holder}</td>
-                        <td class="p-4 text-slate-500 text-xs">${item.note || '-'}</td>
+                        <td class="p-4">${holderDisplay}</td>
+                        <td class="p-4 text-sm">${noteDisplay}</td>
                         <td class="p-4 text-center">
                             ${actionBtn}
                         </td>
@@ -287,7 +306,7 @@
                 document.getElementById('transSubmitBtn').className = "px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium";
             }
 
-            document.getElementById('transName').value = "";
+            document.getElementById('transName').value = mode === 'return' && item.holder !== 'คลังหลัก' ? item.holder : "";
             document.getElementById('transNote').value = "";
             document.getElementById('transactionModal').classList.remove('hidden');
         }
@@ -296,6 +315,7 @@
             document.getElementById('transactionModal').classList.add('hidden');
         }
 
+        // 🌟 ฟังก์ชันจัดการเวลาเบิกและคืน
         function executeTransaction(e) {
             e.preventDefault();
             const idx = parseInt(document.getElementById('transIndex').value);
@@ -303,15 +323,18 @@
             const name = document.getElementById('transName').value;
             const note = document.getElementById('transNote').value;
             const item = inventory[idx];
+            const timestamp = getThaiDateTime();
 
             if (mode === 'borrow') {
                 item.status = 'ถูกเบิก';
                 item.holder = name;
+                item.borrowDate = timestamp; // บันทึกเวลาที่เบิก
                 item.note = note;
             } else {
                 item.status = 'ในคลัง';
                 item.holder = 'คลังหลัก';
-                item.note = note ? `คืนจาก ${name}: ${note}` : `รับคืนจาก ${name}`;
+                item.returnDate = timestamp; // บันทึกเวลาที่คืน
+                item.note = note ? `รับคืนจาก ${name} (${note})` : `รับคืนจาก ${name}`;
             }
 
             saveData();
@@ -342,10 +365,9 @@
             e.preventDefault();
             const idx = document.getElementById('itemIndex').value;
             const rawSn = document.getElementById('itemSn').value;
-            const snList = rawSn.split(',').map(s => s.trim()).filter(s => s !== ""); // ตัดช่องว่างและแยกด้วยลูกน้ำ
+            const snList = rawSn.split(',').map(s => s.trim()).filter(s => s !== ""); 
             
             if (idx === "") {
-                // เพิ่มรายการใหม่ (รองรับหลาย S/N พร้อมกัน)
                 snList.forEach(sn => {
                     inventory.push({
                         sn: sn,
@@ -353,11 +375,12 @@
                         category: document.getElementById('itemCategory').value,
                         status: document.getElementById('itemStatus').value,
                         holder: "คลังหลัก",
-                        note: ""
+                        note: "",
+                        borrowDate: "",
+                        returnDate: ""
                     });
                 });
             } else {
-                // แก้ไขรายการเดิม (อัปเดตแค่ S/N ตัวแรกที่พิมพ์ลงไป)
                 inventory[idx].sn = snList[0]; 
                 inventory[idx].name = document.getElementById('itemName').value;
                 inventory[idx].category = document.getElementById('itemCategory').value;
@@ -399,7 +422,7 @@
                 const wb = XLSX.read(data, {type: 'array'});
                 const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
                 if(json.length > 0) { 
-                    inventory = json; // โครงสร้าง Excel ต้องตรงกับตัวแปร { sn, name, category, status, holder, note }
+                    inventory = json;
                     saveData(); 
                     alert("📤 นำเข้าข้อมูลสำเร็จ!"); 
                 }
