@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบบริหารจัดการอุปกรณ์ราย S/N</title>
+    <title>ระบบบริหารจัดการอุปกรณ์ราย S/N (GitHub Database)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
@@ -12,7 +12,7 @@
 </head>
 <body class="bg-slate-50 text-slate-800">
 
-    <!-- หน้าจอล็อกอิน (แสดงเมื่อยังไม่ได้เข้าสู่ระบบ) -->
+    <!-- หน้าจอล็อกอิน -->
     <div id="loginScreen" class="fixed inset-0 bg-slate-900 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl max-w-sm w-full p-8 shadow-2xl">
             <div class="text-center mb-6">
@@ -47,17 +47,16 @@
         <header class="bg-white shadow-sm rounded-2xl p-6 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-blue-600 flex items-center gap-2">
-                    📦 ระบบคลังอุปกรณ์ (ระบบจัดการราย S/N)
+                    📦 ระบบคลังอุปกรณ์ (เชื่อมต่อ GitHub)
                 </h1>
-                <p class="text-sm text-slate-500">ติดตามอุปกรณ์แบบรายเครื่อง พร้อมระบบจัดการสิทธิ์และนำเข้าแยกประเภท</p>
+                <p class="text-sm text-slate-500">ฐานข้อมูลกลางซิงค์ตรงกันทุกเครื่องแบบ Real-time ผ่าน GitHub</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <div id="adminActionButtons" class="flex flex-wrap gap-2">
                     <button onclick="openAddModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-sm font-medium transition shadow-sm">➕ เพิ่มอุปกรณ์</button>
-                    <button onclick="openImportModal()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-xl text-sm font-medium transition shadow-sm">📂 นำเข้า Excel แยกอุปกรณ์</button>
+                    <button onclick="openImportModal()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-xl text-sm font-medium transition shadow-sm">📂 นำเข้า Excel</button>
                     <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-sm font-medium transition shadow-sm">📥 โหลด Excel</button>
-                    <button onclick="backupSystemData()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-xl text-sm font-medium transition shadow-sm">💾 สำรองข้อมูล</button>
-                    <button onclick="openHistoryModal()" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-xl text-sm font-medium transition shadow-sm">🕒 ประวัติสำรอง</button>
+                    <button onclick="openGithubConfigModal()" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-xl text-sm font-medium transition shadow-sm">⚙️ ตั้งค่า GitHub</button>
                     <button onclick="openUserModal()" class="bg-slate-700 hover:bg-slate-800 text-white px-3 py-2 rounded-xl text-sm font-medium transition shadow-sm">👥 ผู้ใช้</button>
                 </div>
                 <div class="flex items-center gap-2 pl-2 border-l border-slate-200 ml-1">
@@ -70,11 +69,17 @@
             </div>
         </header>
 
-        <!-- Dashboard Summary (Clickable) -->
+        <!-- GitHub Status Banner -->
+        <div id="syncStatusBanner" class="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-2xl mb-6 text-sm flex justify-between items-center hidden">
+            <span id="syncStatusText">⚠️ ยังไม่ได้ตั้งค่าเชื่อมต่อ GitHub กรุณาตั้งค่าที่ปุ่ม "⚙️ ตั้งค่า GitHub" ด้านบน เพื่อซิงค์ฐานข้อมูลกลาง</span>
+            <button onclick="loadDataFromGitHub()" class="px-3 py-1 bg-amber-600 text-white rounded-lg text-xs font-medium hover:bg-amber-700">🔄 ลองเชื่อมต่อใหม่</button>
+        </div>
+
+        <!-- Dashboard Summary -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div onclick="filterByCard('all')" class="bg-white shadow-sm rounded-2xl p-5 border-l-4 border-slate-700 flex flex-col justify-center cursor-pointer hover:bg-slate-50 transition transform hover:-translate-y-0.5">
                 <span class="text-sm font-semibold text-slate-500 mb-1 flex items-center justify-between">
-                    อุปกรณ์ทั้งหมด (ตามเงื่อนไข) <span class="text-xs text-blue-600 font-normal underline">แสดงทั้งหมด</span>
+                    อุปกรณ์ทั้งหมด <span class="text-xs text-blue-600 font-normal underline">แสดงทั้งหมด</span>
                 </span>
                 <div class="flex items-end gap-2">
                     <span id="sumTotal" class="text-3xl font-bold text-slate-800">0</span>
@@ -147,6 +152,40 @@
         </div>
     </div>
 
+    <!-- Modal ตั้งค่า GitHub -->
+    <div id="githubConfigModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-slate-800">⚙️ ตั้งค่าการเชื่อมต่อฐานข้อมูล GitHub</h3>
+                <button onclick="closeGithubConfigModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+            <div class="space-y-4 text-sm">
+                <p class="text-xs text-slate-500">กรอกข้อมูล Repository ของคุณ เพื่อให้ระบบดึงและบันทึกไฟล์ฐานข้อมูล <code>database.json</code> ขึ้น GitHub โดยตรง</p>
+                <div>
+                    <label class="block font-medium text-slate-700 mb-1">GitHub Username / Organization</label>
+                    <input type="text" id="ghOwner" placeholder="เช่น my-github-username" class="w-full px-3 py-2 border rounded-xl">
+                </div>
+                <div>
+                    <label class="block font-medium text-slate-700 mb-1">Repository Name</label>
+                    <input type="text" id="ghRepo" placeholder="เช่น inventory-db" class="w-full px-3 py-2 border rounded-xl">
+                </div>
+                <div>
+                    <label class="block font-medium text-slate-700 mb-1">File Path ใน Repo</label>
+                    <input type="text" id="ghPath" value="database.json" class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                </div>
+                <div>
+                    <label class="block font-medium text-slate-700 mb-1">GitHub Personal Access Token (PAT)</label>
+                    <input type="password" id="ghToken" placeholder="github_pat_xxxx..." class="w-full px-3 py-2 border rounded-xl">
+                    <p class="text-[11px] text-slate-400 mt-1">ต้องสร้าง Token ที่มีสิทธิ์ขอบเขตระดับ <code>repo</code> (Full control of private repositories)</p>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-2">
+                <button type="button" onclick="closeGithubConfigModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-medium">ยกเลิก</button>
+                <button type="button" onclick="saveGithubConfig()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-sm font-medium">บันทึกและเชื่อมต่อ</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal เพิ่ม/แก้ไข อุปกรณ์ -->
     <div id="itemModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
@@ -191,16 +230,16 @@
         </div>
     </div>
 
-    <!-- Modal นำเข้า Excel แยกตามอุปกรณ์ (Import Modal) -->
+    <!-- Modal นำเข้า Excel -->
     <div id="importModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold text-amber-600">📂 นำเข้า Excel แยกตามหมวดหมู่อุปกรณ์</h3>
+                <h3 class="text-lg font-bold text-amber-600">📂 นำเข้า Excel แยกตามหมวดหมู่</h3>
                 <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
             </div>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">เลือกหมวดหมู่อุปกรณ์ที่ต้องการนำเข้า</label>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">เลือกหมวดหมู่อุปกรณ์</label>
                     <select id="importCategory" class="w-full px-3 py-2 border rounded-xl text-sm bg-white">
                         <option value="โทรศัพท์">📱 โทรศัพท์</option>
                         <option value="ประตู">🚪 ประตู</option>
@@ -212,13 +251,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">เลือกไฟล์ Excel (.xlsx, .xls)</label>
-                    <input type="file" id="excelFile" accept=".xlsx, .xls" class="w-full px-3 py-2 border rounded-xl text-sm bg-slate-50 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100">
-                </div>
-                <div class="bg-slate-50 p-3 rounded-xl border text-xs text-slate-500 space-y-1">
-                    <span class="font-bold text-slate-700">💡 รูปแบบคอลัมน์ใน Excel ที่รองรับ:</span>
-                    <p>• คอลัมน์แรก หรือคอลัมน์ชื่อ <code>sn</code> หรือ <code>รหัส</code> (เลข S/N)</p>
-                    <p>• คอลัมน์ชื่อ <code>name</code> หรือ <code>ชื่ออุปกรณ์</code></p>
-                    <p>• คอลัมน์ชื่อ <code>status</code> หรือ <code>สถานะ</code> (ถ้าไม่ใส่ ระบบจะตั้งเป็น "ในคลัง" ให้)</p>
+                    <input type="file" id="excelFile" accept=".xlsx, .xls" class="w-full px-3 py-2 border rounded-xl text-sm bg-slate-50 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-50 file:text-amber-700">
                 </div>
             </div>
             <div class="mt-6 flex justify-end gap-2">
@@ -228,7 +261,7 @@
         </div>
     </div>
 
-    <!-- Modal ทำรายการ เบิก-คืน สำหรับ 1 S/N -->
+    <!-- Modal ทำรายการ เบิก-คืน -->
     <div id="transactionModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
             <h3 id="transTitle" class="text-lg font-bold mb-1 text-blue-600">ทำรายการอุปกรณ์</h3>
@@ -239,11 +272,11 @@
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1" id="nameLabel">ชื่อผู้เบิก / หน่วยงาน</label>
-                        <input type="text" id="transName" placeholder="เช่น วิทวัส" required class="w-full px-3 py-2 border rounded-xl text-sm">
+                        <input type="text" id="transName" required class="w-full px-3 py-2 border rounded-xl text-sm">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">หมายเหตุ / วัตถุประสงค์</label>
-                        <input type="text" id="transNote" placeholder="ระบุเพิ่มเติม (ถ้ามี)" class="w-full px-3 py-2 border rounded-xl text-sm">
+                        <input type="text" id="transNote" class="w-full px-3 py-2 border rounded-xl text-sm">
                     </div>
                 </div>
                 <div class="mt-6 flex justify-end gap-2">
@@ -261,7 +294,6 @@
                 <h3 class="text-lg font-bold text-slate-800">👥 จัดการสิทธิ์ผู้ใช้งานระบบ</h3>
                 <button onclick="closeUserModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
             </div>
-            
             <form onsubmit="addNewUser(event)" class="bg-slate-50 p-4 rounded-xl border mb-4 space-y-3">
                 <h4 class="text-sm font-bold text-blue-600">➕ เพิ่มผู้ใช้งานใหม่</h4>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -274,37 +306,16 @@
                 </div>
                 <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl text-sm font-medium transition">บันทึกเพิ่มผู้ใช้</button>
             </form>
-
             <div class="max-h-48 overflow-y-auto border rounded-xl">
                 <table class="w-full text-left text-sm">
                     <thead class="bg-slate-100 text-slate-500 text-xs">
-                        <tr>
-                            <th class="p-3">Username</th>
-                            <th class="p-3">สิทธิ์ (Role)</th>
-                            <th class="p-3 text-center">จัดการ</th>
-                        </tr>
+                        <tr><th class="p-3">Username</th><th class="p-3">สิทธิ์ (Role)</th><th class="p-3 text-center">จัดการ</th></tr>
                     </thead>
                     <tbody id="userTableBody" class="divide-y divide-slate-100"></tbody>
                 </table>
             </div>
-
             <div class="mt-4 flex justify-end">
                 <button onclick="closeUserModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-medium">ปิด</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal แสดงประวัติสำรองอัตโนมัติ -->
-    <div id="historyModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold text-purple-600">🕒 ประวัติสำรองข้อมูลอัตโนมัติ</h3>
-                <button onclick="closeHistoryModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
-            </div>
-            <p class="text-xs text-slate-500 mb-3">ระบบเก็บประวัติการเปลี่ยนแปลงล่าสุดโดยอัตโนมัติ สามารถกด "กู้คืนจุดนี้" เพื่อย้อนเวลากลับไปได้ทันทีครับ</p>
-            <div id="historyListContainer" class="max-h-72 overflow-y-auto space-y-2 border rounded-xl p-3 bg-slate-50"></div>
-            <div class="mt-4 flex justify-end">
-                <button onclick="closeHistoryModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-medium">ปิด</button>
             </div>
         </div>
     </div>
@@ -320,14 +331,16 @@
     </div>
 
     <script>
-        let inventory = JSON.parse(localStorage.getItem('inventoryDataV4')) || [];
-        
+        let inventory = [];
+        let fileSha = ""; // ใช้สำหรับอัปเดตไฟล์บน GitHub API
+
         let users = JSON.parse(localStorage.getItem('inventoryUsersV1')) || [
             { username: 'admin', password: '1234', role: 'Admin' },
             { username: 'staff', password: '1234', role: 'Staff' }
         ];
 
         let currentUser = JSON.parse(localStorage.getItem('inventoryCurrentUser')) || null;
+        let ghConfig = JSON.parse(localStorage.getItem('githubConfigV1')) || { owner: '', repo: '', path: 'database.json', token: '' };
 
         window.onload = function() {
             checkAuthStatus();
@@ -352,18 +365,122 @@
                     adminActionButtons.style.display = 'flex';
                     adminButtons.forEach(el => el.style.display = '');
                 }
-                renderTable();
+
+                // ตรวจสอบการตั้งค่า GitHub และโหลดข้อมูล
+                if (!ghConfig.token || !ghConfig.owner || !ghConfig.repo) {
+                    document.getElementById('syncStatusBanner').classList.remove('hidden');
+                } else {
+                    loadDataFromGitHub();
+                }
             } else {
                 loginScreen.classList.remove('hidden');
                 mainApp.classList.add('hidden');
             }
         }
 
+        // --- GitHub API Integration Functions ---
+        async function loadDataFromGitHub() {
+            if (!ghConfig.token || !ghConfig.owner || !ghConfig.repo) return;
+            const url = `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${ghConfig.path}`;
+            try {
+                const res = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${ghConfig.token}`, 'Accept': 'application/vnd.github+json' }
+                });
+                if (res.ok) {
+                    const json = await res.json();
+                    fileSha = json.sha;
+                    const decodedStr = decodeURIComponent(escape(atob(json.content)));
+                    inventory = JSON.parse(decodedStr);
+                    document.getElementById('syncStatusBanner').classList.add('hidden');
+                    renderTable();
+                } else if (res.status === 404) {
+                    // ถ้ายังไม่มีไฟล์ ให้สร้างไฟล์เริ่มต้นว่างๆ ขึ้นไปก่อน
+                    inventory = [];
+                    await saveDataToGitHub("Initial database file");
+                    document.getElementById('syncStatusBanner').classList.add('hidden');
+                    renderTable();
+                } else {
+                    throw new Error("GitHub API Error: " + res.status);
+                }
+            } catch (err) {
+                console.error(err);
+                document.getElementById('syncStatusBanner').classList.remove('hidden');
+                document.getElementById('syncStatusText').innerText = "⚠️ เชื่อมต่อ GitHub ไม่สำเร็จ โปรดตรวจสอบ Token หรือสิทธิ์การเข้าถึง";
+            }
+        }
+
+        async function saveDataToGitHub(commitMessage = "Update database") {
+            if (!ghConfig.token || !ghConfig.owner || !ghConfig.repo) {
+                alert("⚠️ กรุณาตั้งค่าเชื่อมต่อ GitHub ก่อนบันทึกข้อมูล");
+                openGithubConfigModal();
+                return false;
+            }
+
+            const url = `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${ghConfig.path}`;
+            const contentBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(inventory, null, 2))));
+            
+            const bodyData = {
+                message: commitMessage,
+                content: contentBase64,
+                sha: fileSha || undefined
+            };
+
+            try {
+                const res = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${ghConfig.token}`,
+                        'Accept': 'application/vnd.github+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(bodyData)
+                });
+
+                if (res.ok) {
+                    const json = await res.json();
+                    fileSha = json.content.sha;
+                    return true;
+                } else {
+                    const errJson = await res.json();
+                    alert("❌ บันทึกขึ้น GitHub ไม่สำเร็จ: " + (errJson.message || res.statusText));
+                    return false;
+                }
+            } catch (err) {
+                console.error(err);
+                alert("❌ เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่ายไปยัง GitHub");
+                return false;
+            }
+        }
+
+        function openGithubConfigModal() {
+            document.getElementById('ghOwner').value = ghConfig.owner;
+            document.getElementById('ghRepo').value = ghConfig.repo;
+            document.getElementById('ghPath').value = ghConfig.path || 'database.json';
+            document.getElementById('ghToken').value = ghConfig.token;
+            document.getElementById('githubConfigModal').classList.remove('hidden');
+        }
+
+        function closeGithubConfigModal() {
+            document.getElementById('githubConfigModal').classList.add('hidden');
+        }
+
+        async function saveGithubConfig() {
+            ghConfig.owner = document.getElementById('ghOwner').value.trim();
+            ghConfig.repo = document.getElementById('ghRepo').value.trim();
+            ghConfig.path = document.getElementById('ghPath').value.trim() || 'database.json';
+            ghConfig.token = document.getElementById('ghToken').value.trim();
+
+            localStorage.setItem('githubConfigV1', JSON.stringify(ghConfig));
+            closeGithubConfigModal();
+            await loadDataFromGitHub();
+            alert("✅ บันทึกการตั้งค่า GitHub เรียบร้อยแล้ว!");
+        }
+
+        // --- ระบบจัดการข้อมูลปกติ ---
         function handleLogin(e) {
             e.preventDefault();
             const u = document.getElementById('loginUser').value.trim();
             const p = document.getElementById('loginPass').value.trim();
-
             const found = users.find(x => x.username === u && x.password === p);
             if (found) {
                 currentUser = found;
@@ -390,17 +507,11 @@
             });
         }
 
-        function autoBackupData() {
-            let history = JSON.parse(localStorage.getItem('inventoryBackupHistory')) || [];
-            history.unshift({ time: getThaiDateTime(), data: JSON.parse(JSON.stringify(inventory)) });
-            if (history.length > 15) history = history.slice(0, 15);
-            localStorage.setItem('inventoryBackupHistory', JSON.stringify(history));
-        }
-
-        function saveData() {
-            localStorage.setItem('inventoryDataV4', JSON.stringify(inventory));
-            autoBackupData();
-            renderTable();
+        async function saveData(actionDesc = "Update inventory") {
+            const success = await saveDataToGitHub(actionDesc);
+            if (success) {
+                renderTable();
+            }
         }
 
         function filterByCard(status) {
@@ -440,58 +551,38 @@
             updateDashboard(filtered);
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center p-6 text-slate-400">ไม่พบข้อมูลอุปกรณ์ตามเงื่อนไข</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center p-6 text-slate-400">ไม่พบข้อมูลอุปกรณ์ตามเงื่อนไข (ลองกดตั้งค่า GitHub หรือรีเฟรชหน้าจอ)</td></tr>`;
                 return;
             }
 
             filtered.forEach((item) => {
                 const idx = inventory.indexOf(item);
-                
-                let badge = '';
-                if(item.status === 'ในคลัง') badge = 'bg-emerald-100 text-emerald-700';
-                else if(item.status === 'ถูกเบิก') badge = 'bg-blue-100 text-blue-700';
-                else badge = 'bg-rose-100 text-rose-700';
+                let badge = item.status === 'ในคลัง' ? 'bg-emerald-100 text-emerald-700' : (item.status === 'ถูกเบิก' ? 'bg-blue-100 text-blue-700' : 'bg-rose-100 text-rose-700');
 
-                let actionBtn = '';
-                if(item.status === 'ในคลัง') {
-                    actionBtn = `<button onclick="openTransModal(${idx}, 'borrow')" class="px-4 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-semibold border border-blue-200 transition shadow-sm">📤 เบิกของ</button>`;
-                } else if(item.status === 'ถูกเบิก') {
-                    actionBtn = `<button onclick="openTransModal(${idx}, 'return')" class="px-4 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg text-xs font-semibold border border-emerald-200 transition shadow-sm">📥 รับคืน</button>`;
-                } else {
-                    actionBtn = `<span class="text-xs text-slate-400">- ส่งซ่อม -</span>`;
-                }
+                let actionBtn = item.status === 'ในคลัง' ? 
+                    `<button onclick="openTransModal(${idx}, 'borrow')" class="px-4 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-semibold border border-blue-200 transition">📤 เบิกของ</button>` :
+                    (item.status === 'ถูกเบิก' ? `<button onclick="openTransModal(${idx}, 'return')" class="px-4 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg text-xs font-semibold border border-emerald-200 transition">📥 รับคืน</button>` : `<span class="text-xs text-slate-400">- ส่งซ่อม -</span>`);
 
                 let holderDisplay = `<span class="text-slate-800 font-medium">${item.holder}</span>`;
-                if (item.status === 'ถูกเบิก' && item.borrowDate) {
-                    holderDisplay += `<br><span class="text-xs text-blue-500 font-normal">📅 ยืม: ${item.borrowDate}</span>`;
-                }
+                if (item.status === 'ถูกเบิก' && item.borrowDate) holderDisplay += `<br><span class="text-xs text-blue-500 font-normal">📅 ยืม: ${item.borrowDate}</span>`;
 
                 let noteDisplay = item.note ? `<span class="text-slate-600">${item.note}</span>` : '<span class="text-slate-400">-</span>';
-                if (item.status === 'ในคลัง' && item.returnDate) {
-                    noteDisplay += `<br><span class="text-xs text-emerald-600 font-normal">🕒 คืน: ${item.returnDate}</span>`;
-                }
+                if (item.status === 'ในคลัง' && item.returnDate) noteDisplay += `<br><span class="text-xs text-emerald-600 font-normal">🕒 คืน: ${item.returnDate}</span>`;
 
-                let adminCol = '';
-                if (currentUser && currentUser.role === 'Admin') {
-                    adminCol = `
-                        <td class="p-4 text-center">
-                            <div class="flex justify-center gap-1">
-                                <button onclick="showQRCode('${item.sn}', '${item.name}')" class="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg" title="พิมพ์ QR">🖨️</button>
-                                <button onclick="editItem(${idx})" class="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg" title="แก้ไข">✏️</button>
-                                <button onclick="deleteItem(${idx})" class="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg" title="ลบ">🗑️</button>
-                            </div>
-                        </td>
-                    `;
-                }
+                let adminCol = currentUser && currentUser.role === 'Admin' ? `
+                    <td class="p-4 text-center">
+                        <div class="flex justify-center gap-1">
+                            <button onclick="showQRCode('${item.sn}', '${item.name}')" class="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg" title="พิมพ์ QR">🖨️</button>
+                            <button onclick="editItem(${idx})" class="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg" title="แก้ไข">✏️</button>
+                            <button onclick="deleteItem(${idx})" class="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg" title="ลบ">🗑️</button>
+                        </div>
+                    </td>` : '';
 
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50/50 transition">
                         <td class="p-4 text-slate-500">${idx + 1}</td>
                         <td class="p-4 font-bold text-blue-700">${item.sn}</td>
-                        <td class="p-4">
-                            ${item.name}
-                            <div class="text-xs text-slate-400 mt-0.5">${item.category}</div>
-                        </td>
+                        <td class="p-4">${item.name}<div class="text-xs text-slate-400 mt-0.5">${item.category}</div></td>
                         <td class="p-4 text-center"><span class="px-3 py-1 rounded-full text-xs font-semibold ${badge}">${item.status}</span></td>
                         <td class="p-4">${holderDisplay}</td>
                         <td class="p-4 text-sm">${noteDisplay}</td>
@@ -507,17 +598,8 @@
             document.getElementById('transIndex').value = idx;
             document.getElementById('transMode').value = mode;
             document.getElementById('transItemInfo').innerText = `[${item.sn}] - ${item.name}`;
-            
-            if (mode === 'borrow') {
-                document.getElementById('transTitle').innerText = "📤 ทำรายการเบิกอุปกรณ์";
-                document.getElementById('nameLabel').innerText = "ชื่อผู้เบิก / หน่วยงาน";
-                document.getElementById('transSubmitBtn').innerText = "ยืนยันการเบิก";
-            } else {
-                document.getElementById('transTitle').innerText = "📥 ทำรายการรับคืนเข้าคลัง";
-                document.getElementById('nameLabel').innerText = "ชื่อผู้ส่งคืน";
-                document.getElementById('transSubmitBtn').innerText = "ยืนยันรับคืน";
-            }
-
+            document.getElementById('transTitle').innerText = mode === 'borrow' ? "📤 ทำรายการเบิกอุปกรณ์" : "📥 ทำรายการรับคืนเข้าคลัง";
+            document.getElementById('nameLabel').innerText = mode === 'borrow' ? "ชื่อผู้เบิก / หน่วยงาน" : "ชื่อผู้ส่งคืน";
             document.getElementById('transName').value = mode === 'return' && item.holder !== 'คลังหลัก' ? item.holder : "";
             document.getElementById('transNote').value = "";
             document.getElementById('transactionModal').classList.remove('hidden');
@@ -525,7 +607,7 @@
 
         function closeTransModal() { document.getElementById('transactionModal').classList.add('hidden'); }
 
-        function executeTransaction(e) {
+        async function executeTransaction(e) {
             e.preventDefault();
             const idx = parseInt(document.getElementById('transIndex').value);
             const mode = document.getElementById('transMode').value;
@@ -546,7 +628,7 @@
                 item.note = note ? `รับคืนจาก ${name} (${note})` : `รับคืนจาก ${name}`;
             }
 
-            saveData();
+            await saveData(`Transaction: ${mode} [${item.sn}] by ${currentUser.username}`);
             closeTransModal();
         }
 
@@ -570,14 +652,13 @@
             document.getElementById('itemModal').classList.remove('hidden');
         }
 
-        function saveItem(e) {
+        async function saveItem(e) {
             e.preventDefault();
             const idxStr = document.getElementById('itemIndex').value;
             const rawSn = document.getElementById('itemSn').value;
             const name = document.getElementById('itemName').value;
             const category = document.getElementById('itemCategory').value;
             const status = document.getElementById('itemStatus').value;
-
             const snList = rawSn.split(',').map(s => s.trim()).filter(s => s !== ""); 
             
             if (idxStr === "") {
@@ -592,88 +673,58 @@
                 inventory[idx].status = status;
             }
 
-            saveData();
+            await saveData("Add/Edit item by " + currentUser.username);
             closeModal();
         }
 
-        function deleteItem(idx) {
+        async function deleteItem(idx) {
             if(confirm("🗑️ ต้องการลบอุปกรณ์นี้ออกจากระบบใช่หรือไม่?")) {
                 inventory.splice(idx, 1);
-                saveData();
+                await saveData("Delete item by " + currentUser.username);
             }
         }
 
-        // ระบบนำเข้า Excel แยกหมวดหมู่
-        function openImportModal() {
-            document.getElementById('excelFile').value = "";
-            document.getElementById('importModal').classList.remove('hidden');
-        }
-
-        function closeImportModal() {
-            document.getElementById('importModal').classList.add('hidden');
-        }
+        function openImportModal() { document.getElementById('excelFile').value = ""; document.getElementById('importModal').classList.remove('hidden'); }
+        function closeImportModal() { document.getElementById('importModal').classList.add('hidden'); }
 
         function processExcelImport() {
             const fileInput = document.getElementById('excelFile');
             const selectedCategory = document.getElementById('importCategory').value;
+            if (fileInput.files.length === 0) { alert("⚠️ กรุณาเลือกไฟล์ Excel"); return; }
 
-            if (fileInput.files.length === 0) {
-                alert("⚠️ กรุณาเลือกไฟล์ Excel ที่ต้องการนำเข้า");
-                return;
-            }
-
-            const file = fileInput.files[0];
             const reader = new FileReader();
-
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 try {
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                     const jsonRows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-
-                    if (jsonRows.length === 0) {
-                        alert("⚠️ ไม่พบข้อมูลในไฟล์ Excel ที่เลือก");
-                        return;
-                    }
 
                     let addedCount = 0;
                     jsonRows.forEach(row => {
-                        // ดึงข้อมูลจากคีย์ต่างๆ รองรับทั้งภาษาไทยและอังกฤษ
-                        const sn = String(row.sn || row.S_N || row.Serial || row.รหัส || row.หมายเลขซีเรียล || Object.values(row)[0] || "").trim();
+                        const sn = String(row.sn || row.S_N || row.Serial || row.รหัส || Object.values(row)[0] || "").trim();
                         const name = String(row.name || row.deviceName || row.ชื่ออุปกรณ์ || Object.values(row)[1] || `อุปกรณ์ ${selectedCategory}`).trim();
                         const status = String(row.status || row.สถานะ || "ในคลัง").trim();
 
-                        if (sn) {
-                            // ป้องกันการเพิ่ม S/N ซ้ำซ้อน
-                            const exists = inventory.some(item => item.sn === sn);
-                            if (!exists) {
-                                inventory.push({
-                                    sn: sn,
-                                    name: name,
-                                    category: selectedCategory,
-                                    status: (status === 'ในคลัง' || status === 'ถูกเบิก' || status === 'ส่งซ่อม') ? status : 'ในคลัง',
-                                    holder: "คลังหลัก",
-                                    note: "นำเข้าจากไฟล์ Excel",
-                                    borrowDate: "",
-                                    returnDate: ""
-                                });
-                                addedCount++;
-                            }
+                        if (sn && !inventory.some(item => item.sn === sn)) {
+                            inventory.push({
+                                sn: sn, name: name, category: selectedCategory,
+                                status: ['ในคลัง','ถูกเบิก','ส่งซ่อม'].includes(status) ? status : 'ในคลัง',
+                                holder: "คลังหลัก", note: "นำเข้าจาก Excel", borrowDate: "", returnDate: ""
+                            });
+                            addedCount++;
                         }
                     });
 
-                    saveData();
+                    await saveData(`Import Excel (${selectedCategory}): ${addedCount} items`);
                     closeImportModal();
-                    alert(`✅ นำเข้าข้อมูลหมวด [ ${selectedCategory} ] สำเร็จทั้งหมด ${addedCount} รายการ!`);
+                    alert(`✅ นำเข้าสำเร็จ ${addedCount} รายการ!`);
                 } catch (err) {
                     console.error(err);
-                    alert("❌ เกิดข้อผิดพลาดในการอ่านไฟล์ Excel กรุณาตรวจสอบรูปแบบไฟล์");
+                    alert("❌ เกิดข้อผิดพลาดในการอ่านไฟล์ Excel");
                 }
             };
-
-            reader.readAsArrayBuffer(file);
+            reader.readAsArrayBuffer(fileInput.files[0]);
         }
 
         function showQRCode(sn, name) {
@@ -682,108 +733,37 @@
             new QRCode(document.getElementById("qrcode"), { text: `S/N:${sn}|Name:${name}`, width: 140, height: 140 });
             document.getElementById('qrModal').classList.remove('hidden');
         }
-        
         function closeQrModal() { document.getElementById('qrModal').classList.add('hidden'); }
 
-        function openUserModal() {
-            renderUserTable();
-            document.getElementById('userModal').classList.remove('hidden');
-        }
-
+        function openUserModal() { renderUserTable(); document.getElementById('userModal').classList.remove('hidden'); }
         function closeUserModal() { document.getElementById('userModal').classList.add('hidden'); }
-
         function renderUserTable() {
             const tbody = document.getElementById('userTableBody');
             tbody.innerHTML = "";
             users.forEach((u, i) => {
                 let badge = u.role === 'Admin' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-700';
                 let deleteBtn = u.username === 'admin' ? '-' : `<button onclick="deleteUser(${i})" class="text-rose-600 hover:underline">ลบ</button>`;
-                
-                tbody.innerHTML += `
-                    <tr>
-                        <td class="p-3 font-medium">${u.username}</td>
-                        <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-semibold ${badge}">${u.role}</span></td>
-                        <td class="p-3 text-center">${deleteBtn}</td>
-                    </tr>
-                `;
+                tbody.innerHTML += `<tr><td class="p-3 font-medium">${u.username}</td><td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-semibold ${badge}">${u.role}</span></td><td class="p-3 text-center">${deleteBtn}</td></tr>`;
             });
         }
-
         function addNewUser(e) {
             e.preventDefault();
             const u = document.getElementById('newUsername').value.trim();
             const p = document.getElementById('newPassword').value.trim();
             const r = document.getElementById('newRole').value;
-
-            if (users.some(x => x.username === u)) {
-                alert("⚠️ มีชื่อผู้ใช้นี้อยู่ในระบบแล้ว");
-                return;
-            }
-
+            if (users.some(x => x.username === u)) { alert("⚠️ มีชื่อผู้ใช้นี้แล้ว"); return; }
             users.push({ username: u, password: p, role: r });
             localStorage.setItem('inventoryUsersV1', JSON.stringify(users));
-            document.getElementById('newUsername').value = '';
-            document.getElementById('newPassword').value = '';
-            renderUserTable();
-            alert("✅ เพิ่มผู้ใช้งานสำเร็จ!");
+            document.getElementById('newUsername').value = ''; document.getElementById('newPassword').value = '';
+            renderUserTable(); alert("✅ เพิ่มผู้ใช้สำเร็จ!");
         }
-
         function deleteUser(i) {
-            if (confirm(`🗑️ ต้องการลบบัญชีผู้ใช้ [ ${users[i].username} ] หรือไม่?`)) {
+            if (confirm(`🗑️ ลบผู้ใช้ [ ${users[i].username} ] ?`)) {
                 users.splice(i, 1);
                 localStorage.setItem('inventoryUsersV1', JSON.stringify(users));
                 renderUserTable();
             }
         }
-
-        function backupSystemData() {
-            if (inventory.length === 0) { alert("⚠️ ไม่มีข้อมูล"); return; }
-            const now = new Date();
-            const ts = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}`;
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(inventory, null, 2));
-            const a = document.createElement('a');
-            a.setAttribute("href", dataStr);
-            a.setAttribute("download", `Inventory_Backup_${ts}.json`);
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-        }
-
-        function openHistoryModal() {
-            const history = JSON.parse(localStorage.getItem('inventoryBackupHistory')) || [];
-            const container = document.getElementById('historyListContainer');
-            container.innerHTML = "";
-            if (history.length === 0) {
-                container.innerHTML = `<p class="text-center text-slate-400 py-4 text-sm">ยังไม่มีประวัติสำรอง</p>`;
-            } else {
-                history.forEach((item, index) => {
-                    container.innerHTML += `
-                        <div class="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                            <div>
-                                <span class="text-xs font-bold text-purple-700">จุดที่ #${index + 1}</span>
-                                <div class="text-xs text-slate-500">📅 ${item.time} (${item.data.length} รายการ)</div>
-                            </div>
-                            <button onclick="restoreAutoBackup(${index})" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-medium">กู้คืนจุดนี้</button>
-                        </div>
-                    `;
-                });
-            }
-            document.getElementById('historyModal').classList.remove('hidden');
-        }
-
-        function closeHistoryModal() { document.getElementById('historyModal').classList.add('hidden'); }
-
-        function restoreAutoBackup(index) {
-            const history = JSON.parse(localStorage.getItem('inventoryBackupHistory')) || [];
-            if (history[index] && confirm(`⚠️ ต้องการกู้คืนข้อมูลไปยังเวลา [ ${history[index].time} ] ?`)) {
-                inventory = history[index].data;
-                localStorage.setItem('inventoryDataV4', JSON.stringify(inventory));
-                renderTable();
-                closeHistoryModal();
-                alert("✅ กู้คืนข้อมูลสำเร็จ!");
-            }
-        }
-
         function exportToExcel() {
             if (inventory.length === 0) { alert("⚠️ ไม่มีข้อมูล"); return; }
             const ws = XLSX.utils.json_to_sheet(inventory);
