@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบบริหารจัดการและเบิกจ่ายอุปกรณ์</title>
+    <title>ระบบบริหารจัดการและเบิกจ่ายอุปกรณ์ในคลัง</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
@@ -12,111 +12,69 @@
 </head>
 <body class="bg-slate-50 text-slate-800">
 
-    <div class="max-w-6xl mx-auto px-4 py-6">
+    <div class="max-w-7xl mx-auto px-4 py-6">
         <!-- Header -->
         <header class="bg-white shadow-sm rounded-2xl p-6 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-blue-600 flex items-center gap-2">
-                    📦 ระบบคลังอุปกรณ์ & เบิก-ยืม
+                    📦 ระบบคลังอุปกรณ์ & เบิก-จ่ายอัตโนมัติ
                 </h1>
-                <p class="text-sm text-slate-500">จัดการสต็อก เช็คสถานภาพ และทำรายการเบิกอุปกรณ์ได้ง่ายๆ</p>
+                <p class="text-sm text-slate-500">จัดการสต็อก ตรวจสอบสถานะ และทำรายการเบิก-คืนได้อย่างรวดเร็ว</p>
             </div>
-            <!-- เมนูกดสลับหน้าจอหลัก -->
-            <div class="flex bg-slate-100 p-1 rounded-xl">
-                <button onclick="switchTab('inventory')" id="tabInv" class="px-4 py-2 rounded-lg text-sm font-semibold bg-white text-blue-600 shadow-sm transition">📋 คลังอุปกรณ์</button>
-                <button onclick="switchTab('borrow')" id="tabBorrow" class="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 transition">🔄 ทำรายการเบิก-ยืม</button>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="openAddModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">➕ เพิ่มอุปกรณ์ใหม่</button>
+                <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">📥 โหลด Excel</button>
+                <label class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm cursor-pointer">
+                    📤 นำเข้า Excel <input type="file" id="excelFile" class="hidden" accept=".xlsx, .xls" onchange="importFromExcel(event)">
+                </label>
             </div>
         </header>
 
-        <!-- ================= SECTION 1: คลังอุปกรณ์ ================= -->
-        <div id="sectionInventory" class="space-y-6">
-            <!-- Action Bar -->
-            <div class="bg-white shadow-sm rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-                <div class="w-full md:w-1/3">
-                    <input type="text" id="searchInput" onkeyup="renderTable()" placeholder="🔍 ค้นหาชื่ออุปกรณ์ หรือ S/N..." class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 text-sm">
-                </div>
-                <div class="flex flex-wrap gap-2 w-full md:w-auto">
-                    <select id="categoryFilter" onchange="renderTable()" class="px-3 py-2 border rounded-xl text-sm bg-white">
-                        <option value="">ทุกหมวดหมู่</option>
-                        <option value="โทรศัพท์">📱 โทรศัพท์</option>
-                        <option value="ประตู">🚪 ประตู</option>
-                        <option value="กล้อง">📷 กล้อง</option>
-                        <option value="เน็ตเวิร์ค">🌐 เน็ตเวิร์ค</option>
-                        <option value="เครื่องมือช่าง">🔧 เครื่องมือช่าง</option>
-                        <option value="อื่นๆ">📦 อื่นๆ</option>
-                    </select>
-                    <button onclick="openAddModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">➕ เพิ่มอุปกรณ์ใหม่</button>
-                    <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">📥 โหลด Excel</button>
-                    <label class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm cursor-pointer">
-                        📤 นำเข้า Excel <input type="file" id="excelFile" class="hidden" accept=".xlsx, .xls" onchange="importFromExcel(event)">
-                    </label>
-                </div>
+        <!-- Search & Filter Bar -->
+        <div class="bg-white shadow-sm rounded-2xl p-4 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div class="w-full md:w-1/3">
+                <input type="text" id="searchInput" onkeyup="renderTable()" placeholder="🔍 ค้นหาชื่ออุปกรณ์, S/N, หรือผู้ถือครอง..." class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 text-sm">
             </div>
-
-            <!-- Table -->
-            <div class="bg-white shadow-sm rounded-2xl overflow-hidden border border-slate-100">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
-                                <th class="p-4">ลำดับ</th>
-                                <th class="p-4">รหัส / S/N</th>
-                                <th class="p-4">ชื่ออุปกรณ์</th>
-                                <th class="p-4">หมวดหมู่</th>
-                                <th class="p-4 text-center">คงเหลือ</th>
-                                <th class="p-4">สถานะ</th>
-                                <th class="p-4">ผู้ถือครองล่าสุด</th>
-                                <th class="p-4 text-center">จัดการ</th>
-                            </tr>
-                        </thead>
-                        <tbody id="inventoryTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
-                    </table>
-                </div>
+            <div class="flex flex-wrap gap-3 w-full md:w-auto">
+                <select id="categoryFilter" onchange="renderTable()" class="px-3 py-2 border rounded-xl text-sm bg-white">
+                    <option value="">ทุกหมวดหมู่</option>
+                    <option value="โทรศัพท์">📱 โทรศัพท์</option>
+                    <option value="ประตู">🚪 ประตู</option>
+                    <option value="กล้อง">📷 กล้อง</option>
+                    <option value="เน็ตเวิร์ค">🌐 เน็ตเวิร์ค</option>
+                    <option value="เครื่องมือช่าง">🔧 เครื่องมือช่าง</option>
+                    <option value="อื่นๆ">📦 อื่นๆ</option>
+                </select>
+                <select id="statusFilter" onchange="renderTable()" class="px-3 py-2 border rounded-xl text-sm bg-white">
+                    <option value="">ทุกสถานะ</option>
+                    <option value="ปกติ">ปกติ (พร้อมใช้)</option>
+                    <option value="กำลังใช้งาน">กำลังใช้งาน</option>
+                    <option value="ส่งซ่อม/ชำรุด">ส่งซ่อม/ชำรุด</option>
+                </select>
             </div>
         </div>
 
-        <!-- ================= SECTION 2: ระบบเบิก-ยืมอุปกรณ์ ================= -->
-        <div id="sectionBorrow" class="hidden space-y-6">
-            <div class="bg-white shadow-sm rounded-2xl p-6 max-w-xl mx-auto border border-slate-100">
-                <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">🔄 ฟอร์มเบิก-ยืม / คืนอุปกรณ์</h3>
-                <form onsubmit="processBorrow(event)" class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">เลือกหมวดหมู่อุปกรณ์</label>
-                        <select id="borrowCat" onchange="updateBorrowItems()" class="w-full px-3 py-2 border rounded-xl text-sm bg-white focus:ring-2 focus:ring-blue-500">
-                            <option value="โทรศัพท์">📱 โทรศัพท์</option>
-                            <option value="ประตู">🚪 ประตู</option>
-                            <option value="กล้อง">📷 กล้อง</option>
-                            <option value="เน็ตเวิร์ค">🌐 เน็ตเวิร์ค</option>
-                            <option value="เครื่องมือช่าง">🔧 เครื่องมือช่าง</option>
-                            <option value="อื่นๆ">📦 อื่นๆ</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">เลือกรายการอุปกรณ์</label>
-                        <select id="borrowItemIndex" class="w-full px-3 py-2 border rounded-xl text-sm bg-white focus:ring-2 focus:ring-blue-500"></select>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">ประเภททำรายการ</label>
-                            <select id="borrowType" class="w-full px-3 py-2 border rounded-xl text-sm bg-white">
-                                <option value="เบิกใช้งาน">📤 เบิกใช้งาน</option>
-                                <option value="คืนคลัง">📥 ส่งคืนคลัง</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">จำนวน</label>
-                            <input type="number" id="borrowQty" value="1" min="1" required class="w-full px-3 py-2 border rounded-xl text-sm">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">ชื่อผู้เบิก / หน่วยงานผู้รับผิดชอบ</label>
-                        <input type="text" id="borrowerName" placeholder="เช่น ร.ต.อ. สมชาย" required class="w-full px-3 py-2 border rounded-xl text-sm">
-                    </div>
-                    <button type="submit" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-sm transition">ยืนยันทำรายการ</button>
-                </form>
+        <!-- Inventory Table -->
+        <div class="bg-white shadow-sm rounded-2xl overflow-hidden border border-slate-100">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                            <th class="p-4">ลำดับ</th>
+                            <th class="p-4">รหัส / S/N</th>
+                            <th class="p-4">ชื่ออุปกรณ์</th>
+                            <th class="p-4">หมวดหมู่</th>
+                            <th class="p-4 text-center">คงเหลือ</th>
+                            <th class="p-4">สถานะ</th>
+                            <th class="p-4">ผู้ถือครอง / สถานที่ล่าสุด</th>
+                            <th class="p-4 text-center">ทำรายการเบิก-คืน</th>
+                            <th class="p-4 text-center">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventoryTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+                </table>
             </div>
         </div>
-
     </div>
 
     <!-- Modal เพิ่ม/แก้ไข อุปกรณ์ -->
@@ -168,6 +126,36 @@
         </div>
     </div>
 
+    <!-- Modal ทำรายการ เบิก-คืน (แบบระบุรายละเอียด) -->
+    <div id="transactionModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
+            <h3 id="transTitle" class="text-lg font-bold mb-1 text-blue-600">ทำรายการอุปกรณ์</h3>
+            <p id="transItemInfo" class="text-xs text-slate-500 mb-4"></p>
+            <form onsubmit="executeTransaction(event)">
+                <input type="hidden" id="transIndex">
+                <input type="hidden" id="transMode"> <!-- 'borrow' หรือ 'return' -->
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1" id="qtyLabel">จำนวนที่ต้องการเบิก</label>
+                        <input type="number" id="transQty" value="1" min="1" required class="w-full px-3 py-2 border rounded-xl text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1" id="nameLabel">ชื่อผู้เบิก / หน่วยงาน</label>
+                        <input type="text" id="transName" placeholder="เช่น ร.ต.อ. สมชาย" required class="w-full px-3 py-2 border rounded-xl text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">หมายเหตุ / วัตถุประสงค์</label>
+                        <input type="text" id="transNote" placeholder="เช่น นำไปติดตั้งจุดตรวจ A, ซ่อมบำรุงประจำเดือน" class="w-full px-3 py-2 border rounded-xl text-sm">
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end gap-2">
+                    <button type="button" onclick="closeTransModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-medium">ยกเลิก</button>
+                    <button type="submit" id="transSubmitBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium">ยืนยันเบิกของ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Modal QR Code -->
     <div id="qrModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl max-w-xs w-full p-6 text-center shadow-xl">
@@ -180,8 +168,8 @@
 
     <script>
         let inventory = JSON.parse(localStorage.getItem('inventoryData')) || [
-            { sn: "TEL-01", name: "IP Phone Cisco", category: "โทรศัพท์", qty: 5, status: "ปกติ", holder: "คลังกลาง" },
-            { sn: "NET-01", name: "Switch 24 Port", category: "เน็ตเวิร์ค", qty: 2, status: "กำลังใช้งาน", holder: "ห้อง Server" }
+            { sn: "TEL-01", name: "IP Phone Cisco", category: "โทรศัพท์", qty: 5, status: "ปกติ", holder: "คลังหลัก" },
+            { sn: "CAM-01", name: "IP Camera Outdoor", category: "กล้อง", qty: 2, status: "กำลังใช้งาน", holder: "ร.ต.อ. สมชาย" }
         ];
 
         function saveData() {
@@ -189,36 +177,22 @@
             renderTable();
         }
 
-        function switchTab(tab) {
-            if(tab === 'inventory') {
-                document.getElementById('sectionInventory').classList.remove('hidden');
-                document.getElementById('sectionBorrow').classList.add('hidden');
-                document.getElementById('tabInv').className = "px-4 py-2 rounded-lg text-sm font-semibold bg-white text-blue-600 shadow-sm transition";
-                document.getElementById('tabBorrow').className = "px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 transition";
-                renderTable();
-            } else {
-                document.getElementById('sectionInventory').classList.add('hidden');
-                document.getElementById('sectionBorrow').classList.remove('hidden');
-                document.getElementById('tabBorrow').className = "px-4 py-2 rounded-lg text-sm font-semibold bg-white text-blue-600 shadow-sm transition";
-                document.getElementById('tabInv').className = "px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 transition";
-                updateBorrowItems();
-            }
-        }
-
         function renderTable() {
             const tbody = document.getElementById('inventoryTableBody');
             const search = document.getElementById('searchInput').value.toLowerCase();
             const catFilter = document.getElementById('categoryFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
             tbody.innerHTML = '';
 
             const filtered = inventory.filter(item => {
-                const matchSearch = item.name.toLowerCase().includes(search) || item.sn.toLowerCase().includes(search);
+                const matchSearch = item.name.toLowerCase().includes(search) || item.sn.toLowerCase().includes(search) || (item.holder && item.holder.toLowerCase().includes(search));
                 const matchCat = catFilter === "" || item.category === catFilter;
-                return matchSearch && matchCat;
+                const matchStatus = statusFilter === "" || item.status === statusFilter;
+                return matchSearch && matchCat && matchStatus;
             });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center p-6 text-slate-400">ไม่พบข้อมูลอุปกรณ์</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center p-6 text-slate-400">ไม่พบข้อมูลอุปกรณ์ตามเงื่อนไข</td></tr>`;
                 return;
             }
 
@@ -232,61 +206,84 @@
                         <td class="p-4 font-semibold text-blue-600">${item.sn}</td>
                         <td class="p-4">${item.name}</td>
                         <td class="p-4"><span class="px-2.5 py-1 bg-slate-100 rounded-lg text-xs text-slate-600">${item.category}</span></td>
-                        <td class="p-4 text-center font-bold">${item.qty}</td>
+                        <td class="p-4 text-center font-bold text-base ${item.qty === 0 ? 'text-rose-600' : 'text-slate-800'}">${item.qty}</td>
                         <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${badge}">${item.status}</span></td>
-                        <td class="p-4 text-slate-600">${item.holder || '-'}</td>
-                        <td class="p-4 text-center flex justify-center gap-1.5">
-                            <button onclick="showQRCode('${item.sn}', '${item.name}')" class="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg" title="พิมพ์ QR">🖨️</button>
-                            <button onclick="editItem(${idx})" class="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg" title="แก้ไข">✏️</button>
-                            <button onclick="deleteItem(${idx})" class="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg" title="ลบ">🗑️</button>
+                        <td class="p-4 text-slate-600 text-xs">${item.holder || '-'}</td>
+                        <td class="p-4 text-center">
+                            <div class="flex justify-center gap-1.5">
+                                <button onclick="openTransModal(${idx}, 'borrow')" class="px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-semibold transition" title="เบิกของ">📤 เบิก</button>
+                                <button onclick="openTransModal(${idx}, 'return')" class="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg text-xs font-semibold transition" title="คืนของ">📥 คืน</button>
+                            </div>
+                        </td>
+                        <td class="p-4 text-center">
+                            <div class="flex justify-center gap-1">
+                                <button onclick="showQRCode('${item.sn}', '${item.name}')" class="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg" title="พิมพ์ QR">🖨️</button>
+                                <button onclick="editItem(${idx})" class="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg" title="แก้ไข">✏️</button>
+                                <button onclick="deleteItem(${idx})" class="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg" title="ลบ">🗑️</button>
+                            </div>
                         </td>
                     </tr>
                 `;
             });
         }
 
-        function updateBorrowItems() {
-            const cat = document.getElementById('borrowCat').value;
-            const select = document.getElementById('borrowItemIndex');
-            select.innerHTML = '';
-            
-            inventory.forEach((item, idx) => {
-                if (item.category === cat) {
-                    select.innerHTML += `<option value="${idx}">${item.name} (คงเหลือ: ${item.qty}, S/N: ${item.sn})</option>`;
-                }
-            });
+        // จัดการหน้าต่าง เบิก-คืน
+        function openTransModal(idx, mode) {
+            const item = inventory[idx];
+            document.getElementById('transIndex').value = idx;
+            document.getElementById('transMode').value = mode;
+            document.getElementById('transItemInfo').innerText = `อุปกรณ์: ${item.name} (รหัส: ${item.sn}) | คงเหลือในคลัง: ${item.qty}`;
+            document.getElementById('transQty').value = 1;
+            document.getElementById('transName').value = "";
+            document.getElementById('transNote').value = "";
 
-            if (select.innerHTML === '') {
-                select.innerHTML = `<option value="">ไม่มีอุปกรณ์ในหมวดหมู่นี้</option>`;
+            if (mode === 'borrow') {
+                document.getElementById('transTitle').innerText = "📤 ทำรายการเบิกอุปกรณ์";
+                document.getElementById('qtyLabel').innerText = "จำนวนที่ต้องการเบิก";
+                document.getElementById('nameLabel').innerText = "ชื่อผู้เบิก / หน่วยงาน";
+                document.getElementById('transSubmitBtn').innerText = "ยืนยันเบิกของ";
+                document.getElementById('transSubmitBtn').className = "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium";
+            } else {
+                document.getElementById('transTitle').innerText = "📥 ทำรายการคืนอุปกรณ์เข้าคลัง";
+                document.getElementById('qtyLabel').innerText = "จำนวนที่ส่งคืน";
+                document.getElementById('nameLabel').innerText = "ชื่อผู้ส่งคืน";
+                document.getElementById('transSubmitBtn').innerText = "ยืนยันรับคืน";
+                document.getElementById('transSubmitBtn').className = "px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium";
             }
+
+            document.getElementById('transactionModal').classList.remove('hidden');
         }
 
-        function processBorrow(e) {
-            e.preventDefault();
-            const idx = document.getElementById('borrowItemIndex').value;
-            if(idx === "") { alert("กรุณาเลือกอุปกรณ์"); return; }
-            
-            const qty = parseInt(document.getElementById('borrowQty').value);
-            const type = document.getElementById('borrowType').value;
-            const name = document.getElementById('borrowerName').value;
+        function closeTransModal() {
+            document.getElementById('transactionModal').classList.add('hidden');
+        }
 
-            if (type === 'เบิกใช้งาน') {
-                if (inventory[idx].qty < qty) {
-                    alert("จำนวนอุปกรณ์ในคลังไม่พอเบิก!");
+        function executeTransaction(e) {
+            e.preventDefault();
+            const idx = parseInt(document.getElementById('transIndex').value);
+            const mode = document.getElementById('transMode').value;
+            const qty = parseInt(document.getElementById('transQty').value);
+            const name = document.getElementById('transName').value;
+            const note = document.getElementById('transNote').value;
+            const item = inventory[idx];
+
+            if (mode === 'borrow') {
+                if (item.qty < qty) {
+                    alert("⚠️ จำนวนอุปกรณ์ในคลังไม่พอเบิก (คงเหลือไม่เพียงพอ)");
                     return;
                 }
-                inventory[idx].qty -= qty;
-                inventory[idx].status = 'กำลังใช้งาน';
-                inventory[idx].holder = name;
+                item.qty -= qty;
+                item.status = item.qty === 0 ? 'หมด / กำลังใช้งาน' : 'กำลังใช้งาน';
+                item.holder = `${name} (${note || 'เบิกใช้งาน'})`;
             } else {
-                inventory[idx].qty += qty;
-                inventory[idx].status = 'ปกติ';
-                inventory[idx].holder = 'คลังหลัก (' + name + ' คืน)';
+                item.qty += qty;
+                item.status = 'ปกติ';
+                item.holder = `คลังหลัก (${name} คืน - ${note || 'ปกติ'})`;
             }
 
             saveData();
-            alert("ทำรายการสำเร็จ!");
-            switchTab('inventory');
+            closeTransModal();
+            alert("✅ ทำรายการสำเร็จ!");
         }
 
         function openAddModal() {
@@ -330,7 +327,7 @@
         }
 
         function deleteItem(idx) {
-            if(confirm("ต้องการลบอุปกรณ์นี้?")) {
+            if(confirm("🗑️ ต้องการลบอุปกรณ์นี้ออกจากระบบใช่หรือไม่?")) {
                 inventory.splice(idx, 1);
                 saveData();
             }
@@ -348,7 +345,7 @@
             const ws = XLSX.utils.json_to_sheet(inventory);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Inventory");
-            XLSX.writeFile(wb, "Inventory.xlsx");
+            XLSX.writeFile(wb, "Inventory_Report.xlsx");
         }
 
         function importFromExcel(e) {
@@ -359,7 +356,7 @@
                 const data = new Uint8Array(evt.target.result);
                 const wb = XLSX.read(data, {type: 'array'});
                 const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-                if(json.length > 0) { inventory = json; saveData(); alert("นำเข้าสำเร็จ!"); }
+                if(json.length > 0) { inventory = json; saveData(); alert("📤 นำเข้าข้อมูลสำเร็จ!"); }
             };
             reader.readAsArrayBuffer(file);
         }
