@@ -49,15 +49,16 @@
                 <h1 class="text-2xl font-bold text-blue-600 flex items-center gap-2">
                     📦 ระบบคลังอุปกรณ์ (ระบบจัดการราย S/N)
                 </h1>
-                <p class="text-sm text-slate-500">ติดตามอุปกรณ์แบบรายเครื่อง พร้อมระบบจัดการสิทธิ์ผู้ใช้งาน</p>
+                <p class="text-sm text-slate-500">ติดตามอุปกรณ์แบบรายเครื่อง พร้อมระบบจัดการสิทธิ์และนำเข้าแยกประเภท</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <div id="adminActionButtons" class="flex flex-wrap gap-2">
-                    <button onclick="openAddModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">➕ เพิ่มอุปกรณ์ใหม่</button>
-                    <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">📥 โหลด Excel</button>
-                    <button onclick="backupSystemData()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">💾 สำรองลงไฟล์</button>
-                    <button onclick="openHistoryModal()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">🕒 ประวัติสำรอง</button>
-                    <button onclick="openUserModal()" class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">👥 จัดการสิทธิ์ผู้ใช้</button>
+                    <button onclick="openAddModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-sm font-medium transition shadow-sm">➕ เพิ่มอุปกรณ์</button>
+                    <button onclick="openImportModal()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-xl text-sm font-medium transition shadow-sm">📂 นำเข้า Excel แยกอุปกรณ์</button>
+                    <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-sm font-medium transition shadow-sm">📥 โหลด Excel</button>
+                    <button onclick="backupSystemData()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-xl text-sm font-medium transition shadow-sm">💾 สำรองข้อมูล</button>
+                    <button onclick="openHistoryModal()" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-xl text-sm font-medium transition shadow-sm">🕒 ประวัติสำรอง</button>
+                    <button onclick="openUserModal()" class="bg-slate-700 hover:bg-slate-800 text-white px-3 py-2 rounded-xl text-sm font-medium transition shadow-sm">👥 ผู้ใช้</button>
                 </div>
                 <div class="flex items-center gap-2 pl-2 border-l border-slate-200 ml-1">
                     <div class="text-right hidden sm:block">
@@ -154,7 +155,7 @@
                 <input type="hidden" id="itemIndex">
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">รหัส / S/N อุปกรณ์ <span class="text-xs text-blue-500 font-normal">(ใส่ลูกน้ำ , คั่นเพื่อเพิ่มหลายเครื่องพร้อมกันได้)</span></label>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">รหัส / S/N อุปกรณ์ <span class="text-xs text-blue-500 font-normal">(ใส่ลูกน้ำ , คั่นเพื่อเพิ่มหลายเครื่องได้)</span></label>
                         <input type="text" id="itemSn" placeholder="เช่น TEL-01, TEL-02" required class="w-full px-3 py-2 border rounded-xl text-sm">
                     </div>
                     <div>
@@ -190,6 +191,43 @@
         </div>
     </div>
 
+    <!-- Modal นำเข้า Excel แยกตามอุปกรณ์ (Import Modal) -->
+    <div id="importModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-amber-600">📂 นำเข้า Excel แยกตามหมวดหมู่อุปกรณ์</h3>
+                <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">เลือกหมวดหมู่อุปกรณ์ที่ต้องการนำเข้า</label>
+                    <select id="importCategory" class="w-full px-3 py-2 border rounded-xl text-sm bg-white">
+                        <option value="โทรศัพท์">📱 โทรศัพท์</option>
+                        <option value="ประตู">🚪 ประตู</option>
+                        <option value="กล้อง">📷 กล้อง</option>
+                        <option value="เน็ตเวิร์ค">🌐 เน็ตเวิร์ค</option>
+                        <option value="เครื่องมือช่าง">🔧 เครื่องมือช่าง</option>
+                        <option value="อื่นๆ">📦 อื่นๆ</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">เลือกไฟล์ Excel (.xlsx, .xls)</label>
+                    <input type="file" id="excelFile" accept=".xlsx, .xls" class="w-full px-3 py-2 border rounded-xl text-sm bg-slate-50 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100">
+                </div>
+                <div class="bg-slate-50 p-3 rounded-xl border text-xs text-slate-500 space-y-1">
+                    <span class="font-bold text-slate-700">💡 รูปแบบคอลัมน์ใน Excel ที่รองรับ:</span>
+                    <p>• คอลัมน์แรก หรือคอลัมน์ชื่อ <code>sn</code> หรือ <code>รหัส</code> (เลข S/N)</p>
+                    <p>• คอลัมน์ชื่อ <code>name</code> หรือ <code>ชื่ออุปกรณ์</code></p>
+                    <p>• คอลัมน์ชื่อ <code>status</code> หรือ <code>สถานะ</code> (ถ้าไม่ใส่ ระบบจะตั้งเป็น "ในคลัง" ให้)</p>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-2">
+                <button type="button" onclick="closeImportModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-medium">ยกเลิก</button>
+                <button type="button" onclick="processExcelImport()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-medium">นำเข้าข้อมูล</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal ทำรายการ เบิก-คืน สำหรับ 1 S/N -->
     <div id="transactionModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
@@ -216,7 +254,7 @@
         </div>
     </div>
 
-    <!-- Modal จัดการสิทธิ์ผู้ใช้ (User & Role Management) -->
+    <!-- Modal จัดการสิทธิ์ผู้ใช้ -->
     <div id="userModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-xl">
             <div class="flex justify-between items-center mb-4">
@@ -224,7 +262,6 @@
                 <button onclick="closeUserModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
             </div>
             
-            <!-- ฟอร์มเพิ่มผู้ใช้ใหม่ -->
             <form onsubmit="addNewUser(event)" class="bg-slate-50 p-4 rounded-xl border mb-4 space-y-3">
                 <h4 class="text-sm font-bold text-blue-600">➕ เพิ่มผู้ใช้งานใหม่</h4>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -238,7 +275,6 @@
                 <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl text-sm font-medium transition">บันทึกเพิ่มผู้ใช้</button>
             </form>
 
-            <!-- ตารางรายชื่อผู้ใช้ -->
             <div class="max-h-48 overflow-y-auto border rounded-xl">
                 <table class="w-full text-left text-sm">
                     <thead class="bg-slate-100 text-slate-500 text-xs">
@@ -284,10 +320,8 @@
     </div>
 
     <script>
-        // โหลดข้อมูลระบบ
         let inventory = JSON.parse(localStorage.getItem('inventoryDataV4')) || [];
         
-        // กำหนดผู้ใช้เริ่มต้นหากยังไม่มีในระบบ
         let users = JSON.parse(localStorage.getItem('inventoryUsersV1')) || [
             { username: 'admin', password: '1234', role: 'Admin' },
             { username: 'staff', password: '1234', role: 'Staff' }
@@ -295,7 +329,6 @@
 
         let currentUser = JSON.parse(localStorage.getItem('inventoryCurrentUser')) || null;
 
-        // ตรวจสอบสถานะการล็อกอินตอนเปิดหน้าเว็บ
         window.onload = function() {
             checkAuthStatus();
         };
@@ -310,7 +343,6 @@
                 document.getElementById('currentUserName').innerText = currentUser.username;
                 document.getElementById('currentUserRole').innerText = currentUser.role === 'Admin' ? '👑 ผู้ดูแลระบบ' : '👤 เจ้าหน้าที่';
                 
-                // ควบคุมการแสดงปุ่มเฉพาะ Admin
                 const adminButtons = document.querySelectorAll('.admin-only');
                 const adminActionButtons = document.getElementById('adminActionButtons');
                 if (currentUser.role !== 'Admin') {
@@ -571,6 +603,79 @@
             }
         }
 
+        // ระบบนำเข้า Excel แยกหมวดหมู่
+        function openImportModal() {
+            document.getElementById('excelFile').value = "";
+            document.getElementById('importModal').classList.remove('hidden');
+        }
+
+        function closeImportModal() {
+            document.getElementById('importModal').classList.add('hidden');
+        }
+
+        function processExcelImport() {
+            const fileInput = document.getElementById('excelFile');
+            const selectedCategory = document.getElementById('importCategory').value;
+
+            if (fileInput.files.length === 0) {
+                alert("⚠️ กรุณาเลือกไฟล์ Excel ที่ต้องการนำเข้า");
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const jsonRows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+                    if (jsonRows.length === 0) {
+                        alert("⚠️ ไม่พบข้อมูลในไฟล์ Excel ที่เลือก");
+                        return;
+                    }
+
+                    let addedCount = 0;
+                    jsonRows.forEach(row => {
+                        // ดึงข้อมูลจากคีย์ต่างๆ รองรับทั้งภาษาไทยและอังกฤษ
+                        const sn = String(row.sn || row.S_N || row.Serial || row.รหัส || row.หมายเลขซีเรียล || Object.values(row)[0] || "").trim();
+                        const name = String(row.name || row.deviceName || row.ชื่ออุปกรณ์ || Object.values(row)[1] || `อุปกรณ์ ${selectedCategory}`).trim();
+                        const status = String(row.status || row.สถานะ || "ในคลัง").trim();
+
+                        if (sn) {
+                            // ป้องกันการเพิ่ม S/N ซ้ำซ้อน
+                            const exists = inventory.some(item => item.sn === sn);
+                            if (!exists) {
+                                inventory.push({
+                                    sn: sn,
+                                    name: name,
+                                    category: selectedCategory,
+                                    status: (status === 'ในคลัง' || status === 'ถูกเบิก' || status === 'ส่งซ่อม') ? status : 'ในคลัง',
+                                    holder: "คลังหลัก",
+                                    note: "นำเข้าจากไฟล์ Excel",
+                                    borrowDate: "",
+                                    returnDate: ""
+                                });
+                                addedCount++;
+                            }
+                        }
+                    });
+
+                    saveData();
+                    closeImportModal();
+                    alert(`✅ นำเข้าข้อมูลหมวด [ ${selectedCategory} ] สำเร็จทั้งหมด ${addedCount} รายการ!`);
+                } catch (err) {
+                    console.error(err);
+                    alert("❌ เกิดข้อผิดพลาดในการอ่านไฟล์ Excel กรุณาตรวจสอบรูปแบบไฟล์");
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
         function showQRCode(sn, name) {
             document.getElementById('qrItemName').innerText = `${sn} - ${name}`;
             document.getElementById('qrcode').innerHTML = "";
@@ -580,7 +685,6 @@
         
         function closeQrModal() { document.getElementById('qrModal').classList.add('hidden'); }
 
-        // ระบบจัดการผู้ใช้
         function openUserModal() {
             renderUserTable();
             document.getElementById('userModal').classList.remove('hidden');
