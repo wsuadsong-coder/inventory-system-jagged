@@ -30,24 +30,30 @@
             </div>
         </header>
 
-        <!-- Dashboard Summary -->
+        <!-- Dashboard Summary (Clickable) -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div class="bg-white shadow-sm rounded-2xl p-5 border-l-4 border-slate-700 flex flex-col justify-center">
-                <span class="text-sm font-semibold text-slate-500 mb-1">อุปกรณ์ (ตามเงื่อนไขที่เลือก)</span>
+            <div onclick="filterByCard('all')" class="bg-white shadow-sm rounded-2xl p-5 border-l-4 border-slate-700 flex flex-col justify-center cursor-pointer hover:bg-slate-50 transition transform hover:-translate-y-0.5">
+                <span class="text-sm font-semibold text-slate-500 mb-1 flex items-center justify-between">
+                    อุปกรณ์ทั้งหมด (ตามเงื่อนไข) <span class="text-xs text-blue-600 font-normal underline">แสดงทั้งหมด</span>
+                </span>
                 <div class="flex items-end gap-2">
                     <span id="sumTotal" class="text-3xl font-bold text-slate-800">0</span>
                     <span class="text-slate-500 mb-1">เครื่อง</span>
                 </div>
             </div>
-            <div class="bg-white shadow-sm rounded-2xl p-5 border-l-4 border-emerald-500 flex flex-col justify-center">
-                <span class="text-sm font-semibold text-slate-500 mb-1">📦 อยู่ในคลัง (พร้อมจ่าย)</span>
+            <div onclick="filterByCard('ในคลัง')" class="bg-white shadow-sm rounded-2xl p-5 border-l-4 border-emerald-500 flex flex-col justify-center cursor-pointer hover:bg-emerald-50/50 transition transform hover:-translate-y-0.5">
+                <span class="text-sm font-semibold text-slate-500 mb-1 flex items-center justify-between">
+                    📦 อยู่ในคลัง (พร้อมจ่าย) <span class="text-xs text-emerald-600 font-normal underline">คลิกดูรายการ</span>
+                </span>
                 <div class="flex items-end gap-2">
                     <span id="sumStock" class="text-3xl font-bold text-emerald-600">0</span>
                     <span class="text-emerald-600/70 mb-1">เครื่อง</span>
                 </div>
             </div>
-            <div class="bg-white shadow-sm rounded-2xl p-5 border-l-4 border-blue-500 flex flex-col justify-center">
-                <span class="text-sm font-semibold text-slate-500 mb-1">🔄 ถูกเบิกใช้งานอยู่</span>
+            <div onclick="filterByCard('ถูกเบิก')" class="bg-white shadow-sm rounded-2xl p-5 border-l-4 border-blue-500 flex flex-col justify-center cursor-pointer hover:bg-blue-50/50 transition transform hover:-translate-y-0.5">
+                <span class="text-sm font-semibold text-slate-500 mb-1 flex items-center justify-between">
+                    🔄 ถูกเบิกใช้งานอยู่ <span class="text-xs text-blue-600 font-normal underline">คลิกดูรายการ</span>
+                </span>
                 <div class="flex items-end gap-2">
                     <span id="sumBorrowed" class="text-3xl font-bold text-blue-600">0</span>
                     <span class="text-blue-600/70 mb-1">เครื่อง</span>
@@ -200,7 +206,12 @@
             renderTable();
         }
 
-        // ปรับให้รับค่าอาร์เรย์ที่ส่งเข้ามาเพื่อนับยอด
+        // ฟังก์ชันคลิกกล่อง Dashboard เพื่อกรองสถานะทันที
+        function filterByCard(status) {
+            document.getElementById('statusFilter').value = status === 'all' ? '' : status;
+            renderTable();
+        }
+
         function updateDashboard(dataArray) {
             const stockCount = dataArray.filter(item => item.status === 'ในคลัง').length;
             const borrowedCount = dataArray.filter(item => item.status === 'ถูกเบิก').length;
@@ -217,7 +228,6 @@
             const statusFilter = document.getElementById('statusFilter').value;
             tbody.innerHTML = '';
 
-            // 1. ดึงข้อมูลที่ผ่านการกรอง (Filter)
             const filtered = inventory.filter(item => {
                 const matchSearch = item.name.toLowerCase().includes(search) || item.sn.toLowerCase().includes(search) || (item.holder && item.holder.toLowerCase().includes(search));
                 const matchCat = catFilter === "" || item.category === catFilter;
@@ -225,7 +235,6 @@
                 return matchSearch && matchCat && matchStatus;
             });
 
-            // 2. อัปเดต Dashboard ด้วยข้อมูลที่ผ่านการกรองแล้ว
             updateDashboard(filtered);
 
             if (filtered.length === 0) {
@@ -233,9 +242,8 @@
                 return;
             }
 
-            // 3. แสดงผลตาราง
             filtered.forEach((item) => {
-                const idx = inventory.indexOf(item); // หา Index จริงในอาเรย์หลัก
+                const idx = inventory.indexOf(item);
                 
                 let badge = '';
                 if(item.status === 'ในคลัง') badge = 'bg-emerald-100 text-emerald-700';
@@ -357,6 +365,7 @@
             document.getElementById('itemName').value = item.name;
             document.getElementById('itemCategory').value = item.category;
             document.getElementById('itemStatus').value = item.status;
+            document.getElementById('itemModal').classList.add('hidden'); // Fix typo
             document.getElementById('itemModal').classList.remove('hidden');
         }
 
@@ -381,7 +390,7 @@
                 });
             } else {
                 inventory[idx].sn = snList[0]; 
-                inventory[idx].name = document.getElementById('itemName').value;
+                inventory[idx].name = document.getElementById('itemName'].value;
                 inventory[idx].category = document.getElementById('itemCategory').value;
                 inventory[idx].status = document.getElementById('itemStatus').value;
             }
