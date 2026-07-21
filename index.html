@@ -12,23 +12,60 @@
 </head>
 <body class="bg-slate-50 text-slate-800">
 
-    <div class="max-w-7xl mx-auto px-4 py-6">
+    <!-- หน้าจอล็อกอิน (แสดงเมื่อยังไม่ได้เข้าสู่ระบบ) -->
+    <div id="loginScreen" class="fixed inset-0 bg-slate-900 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-8 shadow-2xl">
+            <div class="text-center mb-6">
+                <span class="text-4xl">🔐</span>
+                <h2 class="text-xl font-bold text-slate-800 mt-2">เข้าสู่ระบบคลังอุปกรณ์</h2>
+                <p class="text-xs text-slate-500 mt-1">กรุณากรอกชื่อผู้ใช้งานและรหัสผ่าน</p>
+            </div>
+            <form onsubmit="handleLogin(event)">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">ชื่อผู้ใช้งาน (Username)</label>
+                        <input type="text" id="loginUser" required class="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500" placeholder="เช่น admin หรือ staff">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">รหัสผ่าน (Password)</label>
+                        <input type="password" id="loginPass" required class="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500" placeholder="รหัสผ่าน">
+                    </div>
+                </div>
+                <button type="submit" class="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-semibold transition shadow-sm">เข้าสู่ระบบ</button>
+            </form>
+            <div class="mt-6 text-xs text-slate-400 text-center bg-slate-50 p-3 rounded-xl border">
+                บัญชีทดสอบ:<br>
+                👑 Admin: <span class="font-mono font-bold text-slate-600">admin / 1234</span><br>
+                👤 Staff: <span class="font-mono font-bold text-slate-600">staff / 1234</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- หน้าจอหลักของระบบ -->
+    <div id="mainApp" class="max-w-7xl mx-auto px-4 py-6 hidden">
         <!-- Header -->
         <header class="bg-white shadow-sm rounded-2xl p-6 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-blue-600 flex items-center gap-2">
                     📦 ระบบคลังอุปกรณ์ (ระบบจัดการราย S/N)
                 </h1>
-                <p class="text-sm text-slate-500">ติดตามอุปกรณ์แบบรายเครื่อง พร้อมระบบสำรองอัตโนมัติและกู้คืนย้อนหลัง</p>
+                <p class="text-sm text-slate-500">ติดตามอุปกรณ์แบบรายเครื่อง พร้อมระบบจัดการสิทธิ์ผู้ใช้งาน</p>
             </div>
-            <div class="flex flex-wrap gap-2">
-                <button onclick="openAddModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">➕ เพิ่มอุปกรณ์ใหม่</button>
-                <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">📥 โหลด Excel</button>
-                <button onclick="backupSystemData()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">💾 สำรองลงไฟล์</button>
-                <button onclick="openHistoryModal()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">🕒 ประวัติสำรองออโต้</button>
-                <label class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm cursor-pointer">
-                    🔄 กู้คืนจากไฟล์ <input type="file" id="restoreFile" class="hidden" accept=".json" onchange="restoreSystemData(event)">
-                </label>
+            <div class="flex flex-wrap items-center gap-2">
+                <div id="adminActionButtons" class="flex flex-wrap gap-2">
+                    <button onclick="openAddModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">➕ เพิ่มอุปกรณ์ใหม่</button>
+                    <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">📥 โหลด Excel</button>
+                    <button onclick="backupSystemData()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">💾 สำรองลงไฟล์</button>
+                    <button onclick="openHistoryModal()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">🕒 ประวัติสำรอง</button>
+                    <button onclick="openUserModal()" class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">👥 จัดการสิทธิ์ผู้ใช้</button>
+                </div>
+                <div class="flex items-center gap-2 pl-2 border-l border-slate-200 ml-1">
+                    <div class="text-right hidden sm:block">
+                        <div id="currentUserName" class="text-xs font-bold text-slate-700">-</div>
+                        <div id="currentUserRole" class="text-[10px] text-blue-600 font-semibold">-</div>
+                    </div>
+                    <button onclick="handleLogout()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-2 rounded-xl text-sm font-medium transition" title="ออกจากระบบ">🚪 ออก</button>
+                </div>
             </div>
         </header>
 
@@ -100,7 +137,7 @@
                             <th class="p-4">ผู้ถือครองปัจจุบัน</th>
                             <th class="p-4">หมายเหตุ</th>
                             <th class="p-4 text-center">เบิก / คืน</th>
-                            <th class="p-4 text-center">จัดการ</th>
+                            <th class="p-4 text-center admin-only">จัดการ</th>
                         </tr>
                     </thead>
                     <tbody id="inventoryTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
@@ -179,7 +216,49 @@
         </div>
     </div>
 
-    <!-- Modal แสดงประวัติสำรองอัตโนมัติ (Auto-Backup History) -->
+    <!-- Modal จัดการสิทธิ์ผู้ใช้ (User & Role Management) -->
+    <div id="userModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-slate-800">👥 จัดการสิทธิ์ผู้ใช้งานระบบ</h3>
+                <button onclick="closeUserModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+            
+            <!-- ฟอร์มเพิ่มผู้ใช้ใหม่ -->
+            <form onsubmit="addNewUser(event)" class="bg-slate-50 p-4 rounded-xl border mb-4 space-y-3">
+                <h4 class="text-sm font-bold text-blue-600">➕ เพิ่มผู้ใช้งานใหม่</h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <input type="text" id="newUsername" placeholder="Username" required class="px-3 py-2 border rounded-xl text-sm bg-white">
+                    <input type="password" id="newPassword" placeholder="Password" required class="px-3 py-2 border rounded-xl text-sm bg-white">
+                    <select id="newRole" class="px-3 py-2 border rounded-xl text-sm bg-white">
+                        <option value="Staff">👤 Staff (ทั่วไป)</option>
+                        <option value="Admin">👑 Admin (ผู้ดูแล)</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl text-sm font-medium transition">บันทึกเพิ่มผู้ใช้</button>
+            </form>
+
+            <!-- ตารางรายชื่อผู้ใช้ -->
+            <div class="max-h-48 overflow-y-auto border rounded-xl">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-100 text-slate-500 text-xs">
+                        <tr>
+                            <th class="p-3">Username</th>
+                            <th class="p-3">สิทธิ์ (Role)</th>
+                            <th class="p-3 text-center">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTableBody" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+
+            <div class="mt-4 flex justify-end">
+                <button onclick="closeUserModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-medium">ปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal แสดงประวัติสำรองอัตโนมัติ -->
     <div id="historyModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl">
             <div class="flex justify-between items-center mb-4">
@@ -187,9 +266,7 @@
                 <button onclick="closeHistoryModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
             </div>
             <p class="text-xs text-slate-500 mb-3">ระบบเก็บประวัติการเปลี่ยนแปลงล่าสุดโดยอัตโนมัติ สามารถกด "กู้คืนจุดนี้" เพื่อย้อนเวลากลับไปได้ทันทีครับ</p>
-            <div id="historyListContainer" class="max-h-72 overflow-y-auto space-y-2 border rounded-xl p-3 bg-slate-50">
-                <!-- รายการประวัติจะถูกแสดงตรงนี้ -->
-            </div>
+            <div id="historyListContainer" class="max-h-72 overflow-y-auto space-y-2 border rounded-xl p-3 bg-slate-50"></div>
             <div class="mt-4 flex justify-end">
                 <button onclick="closeHistoryModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-medium">ปิด</button>
             </div>
@@ -207,42 +284,90 @@
     </div>
 
     <script>
+        // โหลดข้อมูลระบบ
         let inventory = JSON.parse(localStorage.getItem('inventoryDataV4')) || [];
+        
+        // กำหนดผู้ใช้เริ่มต้นหากยังไม่มีในระบบ
+        let users = JSON.parse(localStorage.getItem('inventoryUsersV1')) || [
+            { username: 'admin', password: '1234', role: 'Admin' },
+            { username: 'staff', password: '1234', role: 'Staff' }
+        ];
+
+        let currentUser = JSON.parse(localStorage.getItem('inventoryCurrentUser')) || null;
+
+        // ตรวจสอบสถานะการล็อกอินตอนเปิดหน้าเว็บ
+        window.onload = function() {
+            checkAuthStatus();
+        };
+
+        function checkAuthStatus() {
+            const loginScreen = document.getElementById('loginScreen');
+            const mainApp = document.getElementById('mainApp');
+
+            if (currentUser) {
+                loginScreen.classList.add('hidden');
+                mainApp.classList.remove('hidden');
+                document.getElementById('currentUserName').innerText = currentUser.username;
+                document.getElementById('currentUserRole').innerText = currentUser.role === 'Admin' ? '👑 ผู้ดูแลระบบ' : '👤 เจ้าหน้าที่';
+                
+                // ควบคุมการแสดงปุ่มเฉพาะ Admin
+                const adminButtons = document.querySelectorAll('.admin-only');
+                const adminActionButtons = document.getElementById('adminActionButtons');
+                if (currentUser.role !== 'Admin') {
+                    adminActionButtons.style.display = 'none';
+                    adminButtons.forEach(el => el.style.display = 'none');
+                } else {
+                    adminActionButtons.style.display = 'flex';
+                    adminButtons.forEach(el => el.style.display = '');
+                }
+                renderTable();
+            } else {
+                loginScreen.classList.remove('hidden');
+                mainApp.classList.add('hidden');
+            }
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('loginUser').value.trim();
+            const p = document.getElementById('loginPass').value.trim();
+
+            const found = users.find(x => x.username === u && x.password === p);
+            if (found) {
+                currentUser = found;
+                localStorage.setItem('inventoryCurrentUser', JSON.stringify(currentUser));
+                document.getElementById('loginUser').value = '';
+                document.getElementById('loginPass').value = '';
+                checkAuthStatus();
+            } else {
+                alert("❌ ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง!");
+            }
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            localStorage.removeItem('inventoryCurrentUser');
+            checkAuthStatus();
+        }
 
         function getThaiDateTime() {
             const now = new Date();
             return now.toLocaleDateString('th-TH', { 
-                year: 'numeric', 
-                month: 'short', 
-                day: 'numeric', 
-                hour: '2-digit', 
-                minute: '2-digit',
-                second: '2-digit'
+                year: 'numeric', month: 'short', day: 'numeric', 
+                hour: '2-digit', minute: '2-digit', second: '2-digit' 
             });
         }
 
-        // ระบบสำรองข้อมูลอัตโนมัติทุกครั้งที่มีการเปลี่ยนแปลงข้อมูล (เก็บประวัติสูงสุด 15 ชุดล่าสุด)
         function autoBackupData() {
             let history = JSON.parse(localStorage.getItem('inventoryBackupHistory')) || [];
-            const timestamp = getThaiDateTime();
-            
-            // เพิ่มข้อมูลชุดใหม่เข้าไปที่ตำแหน่งแรกสุด
-            history.unshift({
-                time: timestamp,
-                data: JSON.parse(JSON.stringify(inventory))
-            });
-
-            // จำกัดไม่ให้เก็บประวัติเกิน 15 ชุด เพื่อไม่ให้หน่วยความจำเต็ม
-            if (history.length > 15) {
-                history = history.slice(0, 15);
-            }
-
+            history.unshift({ time: getThaiDateTime(), data: JSON.parse(JSON.stringify(inventory)) });
+            if (history.length > 15) history = history.slice(0, 15);
             localStorage.setItem('inventoryBackupHistory', JSON.stringify(history));
         }
 
         function saveData() {
             localStorage.setItem('inventoryDataV4', JSON.stringify(inventory));
-            autoBackupData(); // สั่งรันสำรองอัตโนมัติทุกครั้งที่บันทึกข้อมูล
+            autoBackupData();
             renderTable();
         }
 
@@ -314,6 +439,19 @@
                     noteDisplay += `<br><span class="text-xs text-emerald-600 font-normal">🕒 คืน: ${item.returnDate}</span>`;
                 }
 
+                let adminCol = '';
+                if (currentUser && currentUser.role === 'Admin') {
+                    adminCol = `
+                        <td class="p-4 text-center">
+                            <div class="flex justify-center gap-1">
+                                <button onclick="showQRCode('${item.sn}', '${item.name}')" class="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg" title="พิมพ์ QR">🖨️</button>
+                                <button onclick="editItem(${idx})" class="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg" title="แก้ไข">✏️</button>
+                                <button onclick="deleteItem(${idx})" class="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg" title="ลบ">🗑️</button>
+                            </div>
+                        </td>
+                    `;
+                }
+
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50/50 transition">
                         <td class="p-4 text-slate-500">${idx + 1}</td>
@@ -325,16 +463,8 @@
                         <td class="p-4 text-center"><span class="px-3 py-1 rounded-full text-xs font-semibold ${badge}">${item.status}</span></td>
                         <td class="p-4">${holderDisplay}</td>
                         <td class="p-4 text-sm">${noteDisplay}</td>
-                        <td class="p-4 text-center">
-                            ${actionBtn}
-                        </td>
-                        <td class="p-4 text-center">
-                            <div class="flex justify-center gap-1">
-                                <button onclick="showQRCode('${item.sn}', '${item.name}')" class="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg" title="พิมพ์ QR">🖨️</button>
-                                <button onclick="editItem(${idx})" class="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg" title="แก้ไข">✏️</button>
-                                <button onclick="deleteItem(${idx})" class="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg" title="ลบ">🗑️</button>
-                            </div>
-                        </td>
+                        <td class="p-4 text-center">${actionBtn}</td>
+                        ${adminCol}
                     </tr>
                 `;
             });
@@ -350,12 +480,10 @@
                 document.getElementById('transTitle').innerText = "📤 ทำรายการเบิกอุปกรณ์";
                 document.getElementById('nameLabel').innerText = "ชื่อผู้เบิก / หน่วยงาน";
                 document.getElementById('transSubmitBtn').innerText = "ยืนยันการเบิก";
-                document.getElementById('transSubmitBtn').className = "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium";
             } else {
                 document.getElementById('transTitle').innerText = "📥 ทำรายการรับคืนเข้าคลัง";
                 document.getElementById('nameLabel').innerText = "ชื่อผู้ส่งคืน";
                 document.getElementById('transSubmitBtn').innerText = "ยืนยันรับคืน";
-                document.getElementById('transSubmitBtn').className = "px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium";
             }
 
             document.getElementById('transName').value = mode === 'return' && item.holder !== 'คลังหลัก' ? item.holder : "";
@@ -363,9 +491,7 @@
             document.getElementById('transactionModal').classList.remove('hidden');
         }
 
-        function closeTransModal() {
-            document.getElementById('transactionModal').classList.add('hidden');
-        }
+        function closeTransModal() { document.getElementById('transactionModal').classList.add('hidden'); }
 
         function executeTransaction(e) {
             e.preventDefault();
@@ -399,9 +525,7 @@
             document.getElementById('itemModal').classList.remove('hidden');
         }
 
-        function closeModal() { 
-            document.getElementById('itemModal').classList.add('hidden'); 
-        }
+        function closeModal() { document.getElementById('itemModal').classList.add('hidden'); }
 
         function editItem(idx) {
             const item = inventory[idx];
@@ -426,16 +550,7 @@
             
             if (idxStr === "") {
                 snList.forEach(sn => {
-                    inventory.push({
-                        sn: sn,
-                        name: name,
-                        category: category,
-                        status: status,
-                        holder: "คลังหลัก",
-                        note: "",
-                        borrowDate: "",
-                        returnDate: ""
-                    });
+                    inventory.push({ sn, name, category, status, holder: "คลังหลัก", note: "", borrowDate: "", returnDate: "" });
                 });
             } else {
                 const idx = parseInt(idxStr);
@@ -463,27 +578,88 @@
             document.getElementById('qrModal').classList.remove('hidden');
         }
         
-        function closeQrModal() { 
-            document.getElementById('qrModal').classList.add('hidden'); 
+        function closeQrModal() { document.getElementById('qrModal').classList.add('hidden'); }
+
+        // ระบบจัดการผู้ใช้
+        function openUserModal() {
+            renderUserTable();
+            document.getElementById('userModal').classList.remove('hidden');
         }
 
-        // แสดงหน้าต่างประวัติสำรองอัตโนมัติ
+        function closeUserModal() { document.getElementById('userModal').classList.add('hidden'); }
+
+        function renderUserTable() {
+            const tbody = document.getElementById('userTableBody');
+            tbody.innerHTML = "";
+            users.forEach((u, i) => {
+                let badge = u.role === 'Admin' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-700';
+                let deleteBtn = u.username === 'admin' ? '-' : `<button onclick="deleteUser(${i})" class="text-rose-600 hover:underline">ลบ</button>`;
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="p-3 font-medium">${u.username}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-semibold ${badge}">${u.role}</span></td>
+                        <td class="p-3 text-center">${deleteBtn}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function addNewUser(e) {
+            e.preventDefault();
+            const u = document.getElementById('newUsername').value.trim();
+            const p = document.getElementById('newPassword').value.trim();
+            const r = document.getElementById('newRole').value;
+
+            if (users.some(x => x.username === u)) {
+                alert("⚠️ มีชื่อผู้ใช้นี้อยู่ในระบบแล้ว");
+                return;
+            }
+
+            users.push({ username: u, password: p, role: r });
+            localStorage.setItem('inventoryUsersV1', JSON.stringify(users));
+            document.getElementById('newUsername').value = '';
+            document.getElementById('newPassword').value = '';
+            renderUserTable();
+            alert("✅ เพิ่มผู้ใช้งานสำเร็จ!");
+        }
+
+        function deleteUser(i) {
+            if (confirm(`🗑️ ต้องการลบบัญชีผู้ใช้ [ ${users[i].username} ] หรือไม่?`)) {
+                users.splice(i, 1);
+                localStorage.setItem('inventoryUsersV1', JSON.stringify(users));
+                renderUserTable();
+            }
+        }
+
+        function backupSystemData() {
+            if (inventory.length === 0) { alert("⚠️ ไม่มีข้อมูล"); return; }
+            const now = new Date();
+            const ts = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}`;
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(inventory, null, 2));
+            const a = document.createElement('a');
+            a.setAttribute("href", dataStr);
+            a.setAttribute("download", `Inventory_Backup_${ts}.json`);
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+
         function openHistoryModal() {
             const history = JSON.parse(localStorage.getItem('inventoryBackupHistory')) || [];
             const container = document.getElementById('historyListContainer');
             container.innerHTML = "";
-
             if (history.length === 0) {
-                container.innerHTML = `<p class="text-center text-slate-400 py-4 text-sm">ยังไม่มีประวัติการสำรองอัตโนมัติ</p>`;
+                container.innerHTML = `<p class="text-center text-slate-400 py-4 text-sm">ยังไม่มีประวัติสำรอง</p>`;
             } else {
                 history.forEach((item, index) => {
                     container.innerHTML += `
                         <div class="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
                             <div>
-                                <span class="text-xs font-bold text-purple-700">จุดสำรองที่ #${index + 1}</span>
+                                <span class="text-xs font-bold text-purple-700">จุดที่ #${index + 1}</span>
                                 <div class="text-xs text-slate-500">📅 ${item.time} (${item.data.length} รายการ)</div>
                             </div>
-                            <button onclick="restoreAutoBackup(${index})" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-medium transition">กู้คืนจุดนี้</button>
+                            <button onclick="restoreAutoBackup(${index})" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-medium">กู้คืนจุดนี้</button>
                         </div>
                     `;
                 });
@@ -491,83 +667,26 @@
             document.getElementById('historyModal').classList.remove('hidden');
         }
 
-        function closeHistoryModal() {
-            document.getElementById('historyModal').classList.add('hidden');
-        }
+        function closeHistoryModal() { document.getElementById('historyModal').classList.add('hidden'); }
 
-        // กู้คืนข้อมูลจากประวัติอัตโนมัติที่เลือก
         function restoreAutoBackup(index) {
             const history = JSON.parse(localStorage.getItem('inventoryBackupHistory')) || [];
-            if (history[index]) {
-                if (confirm(`⚠️ ต้องการกู้คืนข้อมูลย้อนหลังไปยังเวลา [ ${history[index].time} ] ใช่หรือไม่?`)) {
-                    inventory = history[index].data;
-                    localStorage.setItem('inventoryDataV4', JSON.stringify(inventory));
-                    renderTable();
-                    closeHistoryModal();
-                    alert("✅ กู้คืนข้อมูลสำเร็จเรียบร้อยแล้ว!");
-                }
-            }
-        }
-
-        // สำรองข้อมูลออกเป็นไฟล์ .json (สำรองแบบ Manual เสริม)
-        function backupSystemData() {
-            if (inventory.length === 0) {
-                alert("⚠️ ไม่มีข้อมูลในระบบสำหรับสำรอง");
-                return;
-            }
-            const now = new Date();
-            const timestampStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}`;
-
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(inventory, null, 2));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `Inventory_Backup_${timestampStr}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
-        }
-
-        // กู้คืนข้อมูลจากไฟล์สำรองภายนอก (.json)
-        function restoreSystemData(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            if (confirm("⚠️ การกู้คืนข้อมูลจะแทนที่ข้อมูลปัจจุบันทั้งหมด ต้องการดำเนินการต่อหรือไม่?")) {
-                const reader = new FileReader();
-                reader.onload = function(evt) {
-                    try {
-                        const parsedData = JSON.parse(evt.target.result);
-                        if (Array.isArray(parsedData)) {
-                            inventory = parsedData;
-                            saveData();
-                            alert("✅ กู้คืนข้อมูลจากไฟล์สำเร็จเรียบร้อยแล้ว!");
-                        } else {
-                            alert("❌ ไฟล์สำรองไม่ถูกต้อง");
-                        }
-                    } catch (err) {
-                        alert("❌ เกิดข้อผิดพลาดในการอ่านไฟล์สำรอง");
-                    }
-                    e.target.value = "";
-                };
-                reader.readAsText(file);
-            } else {
-                e.target.value = "";
+            if (history[index] && confirm(`⚠️ ต้องการกู้คืนข้อมูลไปยังเวลา [ ${history[index].time} ] ?`)) {
+                inventory = history[index].data;
+                localStorage.setItem('inventoryDataV4', JSON.stringify(inventory));
+                renderTable();
+                closeHistoryModal();
+                alert("✅ กู้คืนข้อมูลสำเร็จ!");
             }
         }
 
         function exportToExcel() {
-            if (inventory.length === 0) {
-                alert("⚠️ ไม่มีข้อมูลสำหรับส่งออก");
-                return;
-            }
+            if (inventory.length === 0) { alert("⚠️ ไม่มีข้อมูล"); return; }
             const ws = XLSX.utils.json_to_sheet(inventory);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Inventory");
             XLSX.writeFile(wb, "Inventory_SN_Report.xlsx");
         }
-
-        // เริ่มต้นรันแสดงตาราง
-        renderTable();
     </script>
 </body>
 </html>
