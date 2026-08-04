@@ -145,7 +145,7 @@
                             <th class="p-4">ชื่ออุปกรณ์</th>
                             <th class="p-4">หมวดหมู่ / ประเภทย่อย</th>
                             <th class="p-4">ยี่ห้อ / รุ่น</th>
-                            <th class="p-4 text-center">จำนวน</th>
+                            <th class="p-4 text-center">จำนวนคงเหลือ</th>
                             <th class="p-4 text-center">สถานะ</th>
                             <th class="p-4">ผู้ถือครองปัจจุบัน</th>
                             <th class="p-4">รับมาเมื่อ</th>
@@ -335,6 +335,10 @@
                 <input type="hidden" id="transIndex">
                 <input type="hidden" id="transMode">
                 <div class="space-y-4">
+                    <div id="borrowQtyWrapper">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">จำนวนที่ต้องการเบิกใช้ <span id="maxQtyHint" class="text-xs text-slate-400"></span></label>
+                        <input type="number" id="transQty" min="1" value="1" class="w-full px-3 py-2 border rounded-xl text-sm font-bold text-blue-600">
+                    </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1" id="nameLabel">ชื่อผู้เบิก / หน่วยงาน</label>
                         <input type="text" id="transName" required class="w-full px-3 py-2 border rounded-xl text-sm">
@@ -689,6 +693,7 @@
                         brand: brand,
                         model: model,
                         qty: qty,
+                        originalQty: qty, // เก็บจำนวนตั้งต้นไว้เทียบตอนคืน
                         status: status,
                         holder: status === 'ถูกเบิก' ? (currentUser ? currentUser.username : '-') : '-',
                         receivedDate: receivedDate,
@@ -703,6 +708,7 @@
                 inventory[index].brand = brand;
                 inventory[index].model = model;
                 inventory[index].qty = qty;
+                if (!inventory[index].originalQty) inventory[index].originalQty = qty;
                 inventory[index].status = status;
                 inventory[index].receivedDate = receivedDate;
                 inventory[index].note = note;
@@ -781,20 +787,28 @@
             const item = inventory[index];
             document.getElementById('transIndex').value = index;
             document.getElementById('transMode').value = mode;
-            document.getElementById('transItemInfo').innerText = `อุปกรณ์: ${item.name} (S/N: ${item.sn}) [จำนวน: ${item.qty || 1}]`;
+            document.getElementById('transItemInfo').innerText = `อุปกรณ์: ${item.name} (S/N: ${item.sn}) [คงเหลือในคลัง: ${item.qty || 1}]`;
             document.getElementById('transName').value = mode === 'borrow' ? '' : (item.holder !== '-' ? item.holder : '');
             document.getElementById('transNote').value = '';
 
+            const qtyInput = document.getElementById('transQty');
+            const qtyWrapper = document.getElementById('borrowQtyWrapper');
+            
             if (mode === 'borrow') {
                 document.getElementById('transTitle').innerText = "🔄 ทำรายการเบิกอุปกรณ์";
                 document.getElementById('nameLabel').innerText = "ชื่อผู้เบิก / หน่วยงาน";
                 document.getElementById('transSubmitBtn').innerText = "ยืนยันการเบิก";
                 document.getElementById('transSubmitBtn').className = "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium";
+                qtyWrapper.style.display = 'block';
+                qtyInput.max = item.qty || 1;
+                qtyInput.value = 1;
+                document.getElementById('maxQtyHint').innerText = `(เบิกได้สูงสุด ${item.qty || 1} ชิ้น)`;
             } else {
                 document.getElementById('transTitle').innerText = "📥 ทำรายการคืนอุปกรณ์";
                 document.getElementById('nameLabel').innerText = "ผู้ส่งคืน / หมายเหตุการคืน";
                 document.getElementById('transSubmitBtn').innerText = "ยืนยันการคืนเข้าคลัง";
                 document.getElementById('transSubmitBtn').className = "px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium";
+                qtyWrapper.style.display = 'none'; // คืนทั้งหมดที่เบิกไป
             }
             document.getElementById('transactionModal').classList.remove('hidden');
         }
@@ -809,15 +823,57 @@
             const mode = document.getElementById('transMode').value;
             const name = document.getElementById('transName').value.trim();
             const note = document.getElementById('transNote').value.trim();
+            const item = inventory[index];
 
             if (mode === 'borrow') {
-                inventory[index].status = 'ถูกเบิก';
-                inventory[index].holder = name;
-                if (note) inventory[index].note = note;
+                const borrowQty = parseInt(document.getElementById('transQty').value) || 1;
+                const currentStock = item.qty || 1;
+
+                if (borrowQty > currentStock) {
+                    alert(`❌ จำนวนที่ต้องการเบิก (${borrowQty}) มากกว่าจำนวนคงเหลือในคลัง (${currentStock})`);
+                    return;
+                }
+
+                if (!item.originalQty) item.originalQty = currentStock;
+
+                if (borrowQty === currentStock) {
+                    // เบิกหมดเกลี้ยงชิ้นนี้
+                    item.status = 'ถูกเบิก';
+                    item.holder = name;
+                } else {
+                    // เบิกบางส่วน: แยกแถวใหม่สำหรับส่วนที่ถูกเบิก
+                    const remainingStock = currentStock - borrowQty;
+                    item.qty = remainingStock; // อัปเดตสต็อกคงเหลือของแถวเดิม
+
+                    // สร้างแถวใหม่สำหรับรายการที่ถูกเบิกไป
+                    const borrowedItem = {
+                        sn: item.sn + ' (เบิก)',
+                        name: item.name,
+                        category: item.category,
+                        subCategory: item.subCategory,
+                        brand: item.brand,
+                        model: item.model,
+                        qty: borrowQty,
+                        originalQty: borrowQty,
+                        status: 'ถูกเบิก',
+                        holder: name,
+                        receivedDate: item.receivedDate,
+                        note: note ? note : item.note
+                    };
+                    inventory.push(borrowedItem);
+                }
+
+                if (note && borrowQty === currentStock) item.note = note;
+
             } else {
-                inventory[index].status = 'ในคลัง';
-                inventory[index].holder = '-';
-                if (note) inventory[index].note = 'คืนจาก: ' + name + (note ? ' (' + note + ')' : '');
+                // คืนอุปกรณ์
+                item.status = 'ในคลัง';
+                item.holder = '-';
+                // ถ้าเป็นแถวที่แยกตอนเบิกบางส่วน ให้รวมจำนวนกลับเข้าคลังหรือปรับสถานะ
+                if (item.originalQty) {
+                    item.qty = item.originalQty;
+                }
+                if (note) item.note = 'คืนจาก: ' + name + (note ? ' (' + note + ')' : '');
             }
 
             closeTransModal();
@@ -1024,6 +1080,7 @@
                                 brand: String(brand),
                                 model: String(model),
                                 qty: qty,
+                                originalQty: qty,
                                 status: 'ในคลัง',
                                 holder: '-',
                                 receivedDate: new Date().toLocaleDateString('th-TH', {year:'numeric', month:'short', day:'numeric'}),
