@@ -110,7 +110,7 @@
         <!-- Search & Filter Bar -->
         <div class="bg-white shadow-sm rounded-2xl p-4 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
             <div class="w-full md:w-1/3">
-                <input type="text" id="searchInput" onkeyup="renderTable()" placeholder="🔍 ค้นหาชื่ออุปกรณ์, ยี่ห้อ, รุ่น, S/N, หรือผู้ถือครอง..." class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 text-sm">
+                <input type="text" id="searchInput" onkeyup="renderTable()" placeholder="🔍 ค้นหาชื่ออุปกรณ์, ยี่ห้อ, รุ่น, S/N, หมวดหมู่ย่อย..." class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 text-sm">
             </div>
             <div class="flex flex-wrap gap-3 w-full md:w-auto">
                 <select id="categoryFilter" onchange="renderTable()" class="px-3 py-2 border rounded-xl text-sm bg-white cursor-pointer">
@@ -121,6 +121,9 @@
                     <option value="เน็ตเวิร์ค">🌐 เน็ตเวิร์ค</option>
                     <option value="เครื่องมือช่าง">🔧 เครื่องมือช่าง</option>
                     <option value="อื่นๆ">📦 อื่นๆ</option>
+                </select>
+                <select id="subCategoryFilter" onchange="renderTable()" class="px-3 py-2 border rounded-xl text-sm bg-white cursor-pointer">
+                    <option value="">ทุกหมวดหมู่ย่อย</option>
                 </select>
                 <select id="statusFilter" onchange="renderTable()" class="px-3 py-2 border rounded-xl text-sm bg-white cursor-pointer">
                     <option value="">ทุกสถานะ</option>
@@ -140,8 +143,8 @@
                             <th class="p-4">ลำดับ</th>
                             <th class="p-4">รหัส / S/N</th>
                             <th class="p-4">ชื่ออุปกรณ์</th>
-                            <th class="p-4">ยี่ห้อ</th>
-                            <th class="p-4">รุ่น</th>
+                            <th class="p-4">หมวดหมู่ / ประเภทย่อย</th>
+                            <th class="p-4">ยี่ห้อ / รุ่น</th>
                             <th class="p-4 text-center">สถานะ</th>
                             <th class="p-4">ผู้ถือครองปัจจุบัน</th>
                             <th class="p-4">รับมาเมื่อ</th>
@@ -235,6 +238,23 @@
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">หมวดหมู่หลัก</label>
+                            <select id="itemCategory" onchange="updateSubCategories()" class="w-full px-3 py-2 border rounded-xl text-sm bg-white">
+                                <option value="โทรศัพท์">โทรศัพท์</option>
+                                <option value="ประตู">ประตู</option>
+                                <option value="กล้อง">กล้อง</option>
+                                <option value="เน็ตเวิร์ค">เน็ตเวิร์ค</option>
+                                <option value="เครื่องมือช่าง">เครื่องมือช่าง</option>
+                                <option value="อื่นๆ">อื่นๆ</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">หมวดหมู่ย่อย</label>
+                            <select id="itemSubCategory" class="w-full px-3 py-2 border rounded-xl text-sm bg-white"></select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
                             <label class="block text-sm font-medium text-slate-700 mb-1">ยี่ห้อ</label>
                             <input type="text" id="itemBrand" class="w-full px-3 py-2 border rounded-xl text-sm" placeholder="เช่น Cisco, Samsung">
                         </div>
@@ -245,27 +265,16 @@
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">หมวดหมู่</label>
-                            <select id="itemCategory" class="w-full px-3 py-2 border rounded-xl text-sm bg-white">
-                                <option value="โทรศัพท์">โทรศัพท์</option>
-                                <option value="ประตู">ประตู</option>
-                                <option value="กล้อง">กล้อง</option>
-                                <option value="เน็ตเวิร์ค">เน็ตเวิร์ค</option>
-                                <option value="เครื่องมือช่าง">เครื่องมือช่าง</option>
-                                <option value="อื่นๆ">อื่นๆ</option>
-                            </select>
-                        </div>
-                        <div>
                             <label class="block text-sm font-medium text-slate-700 mb-1">สถานะเริ่มต้น</label>
                             <select id="itemStatus" class="w-full px-3 py-2 border rounded-xl text-sm bg-white">
                                 <option value="ในคลัง">ในคลัง (พร้อมใช้)</option>
                                 <option value="ส่งซ่อม">ส่งซ่อม/ชำรุด</option>
                             </select>
                         </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">รับมาเมื่อ</label>
-                        <input type="text" id="itemReceivedDate" class="w-full px-3 py-2 border rounded-xl text-sm" placeholder="เช่น 1 ม.ค. 2569 หรือปล่อยว่างเพื่อใช้วันเวลาปัจจุบัน">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">รับมาเมื่อ</label>
+                            <input type="text" id="itemReceivedDate" class="w-full px-3 py-2 border rounded-xl text-sm" placeholder="เช่น 1 ม.ค. 2569">
+                        </div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">หมายเหตุ</label>
@@ -289,7 +298,7 @@
             </div>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">เลือกหมวดหมู่อุปกรณ์</label>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">เลือกหมวดหมู่อุปกรณ์หลัก</label>
                     <select id="importCategory" class="w-full px-3 py-2 border rounded-xl text-sm bg-white">
                         <option value="โทรศัพท์">📱 โทรศัพท์</option>
                         <option value="ประตู">🚪 ประตู</option>
@@ -393,9 +402,78 @@
         let currentUser = JSON.parse(localStorage.getItem('inventoryCurrentUser')) || null;
         let ghConfig = JSON.parse(localStorage.getItem('githubConfigV1')) || { owner: '', repo: '', path: 'database.json', token: '' };
 
+        // โครงสร้างหมวดหมู่ย่อย
+        const subCategoryMapping = {
+            "โทรศัพท์": [
+                "เครื่องโทรศัพท์",
+                "สายโทรศัพท์",
+                "เครื่องเทส",
+                "เครื่องเช็ค",
+                "สายเชื่อมต่อเครื่อง",
+                "หัว RJ-11",
+                "กล่องเชื่อมต่อ"
+            ],
+            "ประตู": ["กลอนไฟฟ้า", "ปุ่มกดเปิดประตู", "Power Supply", "อื่นๆ"],
+            "กล้อง": ["กล้องวงจรปิด", "เครื่องบันทึก DVR/NVR", "สายสัญญาณ", "อื่นๆ"],
+            "เน็ตเวิร์ค": ["Router", "Switch", "Access Point", "สาย LAN", "อื่นๆ"],
+            "เครื่องมือช่าง": ["ไขควง", "คีมย้ำหัว", "LAN Tester", "อื่นๆ"],
+            "อื่นๆ": ["อื่นๆ"]
+        };
+
         window.onload = function() {
             checkAuthStatus();
+            setupCategoryFilterListener();
         };
+
+        function setupCategoryFilterListener() {
+            const catFilter = document.getElementById('categoryFilter');
+            catFilter.addEventListener('change', function() {
+                updateSubCategoryFilterOptions();
+            });
+            updateSubCategoryFilterOptions();
+        }
+
+        function updateSubCategoryFilterOptions() {
+            const mainCat = document.getElementById('categoryFilter').value;
+            const subFilter = document.getElementById('subCategoryFilter');
+            subFilter.innerHTML = '<option value="">ทุกหมวดหมู่ย่อย</option>';
+            
+            if (mainCat && subCategoryMapping[mainCat]) {
+                subCategoryMapping[mainCat].forEach(sub => {
+                    const opt = document.createElement('option');
+                    opt.value = sub;
+                    opt.innerText = sub;
+                    subFilter.appendChild(opt);
+                });
+            } else if (!mainCat) {
+                // หากยังไม่เลือกหมวดหมู่หลัก ให้ดึงหมวดหมู่ย่อยทั้งหมดมาแสดงรวม
+                for (let cat in subCategoryMapping) {
+                    subCategoryMapping[cat].forEach(sub => {
+                        if (!Array.from(subFilter.options).some(o => o.value === sub)) {
+                            const opt = document.createElement('option');
+                            opt.value = sub;
+                            opt.innerText = sub;
+                            subFilter.appendChild(opt);
+                        }
+                    });
+                }
+            }
+        }
+
+        function updateSubCategories(selectedSub = "") {
+            const mainCat = document.getElementById('itemCategory').value;
+            const subSelect = document.getElementById('itemSubCategory');
+            subSelect.innerHTML = '';
+            
+            const subs = subCategoryMapping[mainCat] || ["อื่นๆ"];
+            subs.forEach(sub => {
+                const opt = document.createElement('option');
+                opt.value = sub;
+                opt.innerText = sub;
+                if (sub === selectedSub) opt.selected = true;
+                subSelect.appendChild(opt);
+            });
+        }
 
         function checkAuthStatus() {
             const loginScreen = document.getElementById('loginScreen');
@@ -520,23 +598,21 @@
 
             localStorage.setItem('githubConfigV1', JSON.stringify(ghConfig));
             closeGithubConfigModal();
-            await loadDataFromGitHub();
-            alert("✅ บันทึกการตั้งค่า GitHub เรียบร้อยแล้ว!");
+            checkAuthStatus();
         }
 
-        function handleLogin(e) {
-            e.preventDefault();
+        function handleLogin(event) {
+            event.preventDefault();
             const u = document.getElementById('loginUser').value.trim();
             const p = document.getElementById('loginPass').value.trim();
+
             const found = users.find(x => x.username === u && x.password === p);
             if (found) {
                 currentUser = found;
                 localStorage.setItem('inventoryCurrentUser', JSON.stringify(currentUser));
-                document.getElementById('loginUser').value = '';
-                document.getElementById('loginPass').value = '';
                 checkAuthStatus();
             } else {
-                alert("❌ ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง!");
+                alert("❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
             }
         }
 
@@ -546,145 +622,33 @@
             checkAuthStatus();
         }
 
-        function getThaiDateTime() {
-            const now = new Date();
-            return now.toLocaleDateString('th-TH', { 
-                year: 'numeric', month: 'short', day: 'numeric', 
-                hour: '2-digit', minute: '2-digit', second: '2-digit' 
-            });
-        }
-
-        async function saveData(actionDesc = "Update inventory") {
-            const success = await saveDataToGitHub(actionDesc);
-            if (success) {
-                renderTable();
-            }
-        }
-
-        function renderTable(customData = null) {
-            const tbody = document.getElementById('inventoryTableBody');
-            tbody.innerHTML = '';
-
-            const searchTxt = document.getElementById('searchInput').value.toLowerCase();
-            const catFilter = document.getElementById('categoryFilter').value;
-            const statFilter = document.getElementById('statusFilter').value;
-
-            let dataToDisplay = customData || inventory;
-
-            let filtered = dataToDisplay.filter(item => {
-                const matchSearch = (item.sn || '').toLowerCase().includes(searchTxt) ||
-                                    (item.name || '').toLowerCase().includes(searchTxt) ||
-                                    (item.brand || '').toLowerCase().includes(searchTxt) ||
-                                    (item.model || '').toLowerCase().includes(searchTxt) ||
-                                    (item.holder || '').toLowerCase().includes(searchTxt) ||
-                                    (item.note || '').toLowerCase().includes(searchTxt);
-                const matchCat = catFilter === '' || item.category === catFilter;
-                const matchStat = statFilter === '' || item.status === statFilter;
-                return matchSearch && matchCat && matchStat;
-            });
-
-            let total = inventory.length;
-            let stockCount = inventory.filter(x => x.status === 'ในคลัง').length;
-            let borrowedCount = inventory.filter(x => x.status === 'ถูกเบิก').length;
-
-            document.getElementById('sumTotal').innerText = total;
-            document.getElementById('sumStock').innerText = stockCount;
-            document.getElementById('sumBorrowed').innerText = borrowedCount;
-
-            if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="11" class="text-center p-8 text-slate-400">ไม่พบข้อมูลอุปกรณ์ในระบบ</td></tr>`;
-                return;
-            }
-
-            filtered.forEach((item, index) => {
-                const originalIndex = inventory.indexOf(item);
-                let badgeClass = 'bg-slate-100 text-slate-700';
-                if (item.status === 'ในคลัง') badgeClass = 'bg-emerald-50 text-emerald-600 border border-emerald-200';
-                else if (item.status === 'ถูกเบิก') badgeClass = 'bg-blue-50 text-blue-600 border border-blue-200';
-                else if (item.status === 'ส่งซ่อม') badgeClass = 'bg-amber-50 text-amber-600 border border-amber-200';
-
-                let actionBtn = '';
-                if (item.status === 'ในคลัง') {
-                    actionBtn = `<button onclick="openTransModal(${originalIndex}, 'borrow')" class="px-2.5 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-semibold transition">🔄 เบิก</button>`;
-                } else if (item.status === 'ถูกเบิก') {
-                    actionBtn = `<button onclick="openTransModal(${originalIndex}, 'return')" class="px-2.5 py-1 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-xs font-semibold transition">📥 คืน</button>`;
-                } else {
-                    actionBtn = `<span class="text-xs text-slate-400">-</span>`;
-                }
-
-                const row = document.createElement('tr');
-                row.className = "hover:bg-slate-50/80 transition";
-                row.innerHTML = `
-                    <td class="p-4 font-mono text-xs text-slate-400">${index + 1}</td>
-                    <td class="p-4 font-mono font-bold text-blue-600">
-                        <span onclick="openQrModal('${item.sn}', '${item.name}')" class="cursor-pointer hover:underline" title="คลิกดู QR Code">${item.sn || '-'}</span>
-                    </td>
-                    <td class="p-4 font-medium text-slate-700">${item.name || '-'}</td>
-                    <td class="p-4 text-slate-600">${item.brand || '-'}</td>
-                    <td class="p-4 text-slate-600">${item.model || '-'}</td>
-                    <td class="p-4 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${badgeClass}">${item.status || 'ในคลัง'}</span></td>
-                    <td class="p-4 text-slate-600 font-medium">${item.holder || '-'}</td>
-                    <td class="p-4 text-slate-500 text-xs">
-                        <input type="text" value="${item.receivedDate || '-'}" onchange="updateInlineReceivedDate(${originalIndex}, this.value)" class="w-28 px-2 py-1 border rounded text-xs bg-slate-50 focus:bg-white" title="คลิกเพื่อแก้ไขวันที่รับ">
-                    </td>
-                    <td class="p-4 text-slate-500 text-xs">${item.note || '-'}</td>
-                    <td class="p-4 text-center">${actionBtn}</td>
-                    <td class="p-4 text-center admin-only">
-                        <div class="flex justify-center gap-1">
-                            <button onclick="openEditModal(${originalIndex})" class="p-1.5 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg text-xs transition" title="แก้ไข">✏️</button>
-                            <button onclick="deleteItem(${originalIndex})" class="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-xs transition" title="ลบ">🗑️</button>
-                        </div>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-
-            if (currentUser && currentUser.role !== 'Admin') {
-                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
-            }
-        }
-
-        async function updateInlineReceivedDate(index, newDate) {
-            inventory[index].receivedDate = newDate;
-            await saveData(`Update received date for ${inventory[index].sn}`);
-        }
-
-        function filterByCard(status) {
-            document.getElementById('searchInput').value = '';
-            document.getElementById('categoryFilter').value = '';
-            if (status === 'all') {
-                document.getElementById('statusFilter').value = '';
-            } else {
-                document.getElementById('statusFilter').value = status;
-            }
-            renderTable();
-        }
-
         function openAddModal() {
             document.getElementById('modalTitle').innerText = "เพิ่มอุปกรณ์ใหม่";
             document.getElementById('itemIndex').value = "";
             document.getElementById('itemSn').value = "";
             document.getElementById('itemName').value = "";
+            document.getElementById('itemCategory').value = "โทรศัพท์";
+            updateSubCategories();
             document.getElementById('itemBrand').value = "";
             document.getElementById('itemModel').value = "";
-            document.getElementById('itemCategory').value = "โทรศัพท์";
             document.getElementById('itemStatus').value = "ในคลัง";
-            document.getElementById('itemReceivedDate').value = getThaiDateTime();
+            document.getElementById('itemReceivedDate').value = "";
             document.getElementById('itemNote').value = "";
             document.getElementById('itemModal').classList.remove('hidden');
         }
 
         function openEditModal(index) {
             const item = inventory[index];
-            document.getElementById('modalTitle').innerText = "แก้ไขข้อมูลอุปกรณ์";
+            document.getElementById('modalTitle').innerText = "แก้ไขอุปกรณ์";
             document.getElementById('itemIndex').value = index;
             document.getElementById('itemSn').value = item.sn || "";
             document.getElementById('itemName').value = item.name || "";
+            document.getElementById('itemCategory').value = item.category || "โทรศัพท์";
+            updateSubCategories(item.subCategory || "");
             document.getElementById('itemBrand').value = item.brand || "";
             document.getElementById('itemModel').value = item.model || "";
-            document.getElementById('itemCategory').value = item.category || "โทรศัพท์";
             document.getElementById('itemStatus').value = item.status || "ในคลัง";
-            document.getElementById('itemReceivedDate').value = item.receivedDate || getThaiDateTime();
+            document.getElementById('itemReceivedDate').value = item.receivedDate || "";
             document.getElementById('itemNote').value = item.note || "";
             document.getElementById('itemModal').classList.remove('hidden');
         }
@@ -693,58 +657,90 @@
             document.getElementById('itemModal').classList.add('hidden');
         }
 
-        async function saveItem(e) {
-            e.preventDefault();
+        async function saveItem(event) {
+            event.preventDefault();
             const index = document.getElementById('itemIndex').value;
-            const snRaw = document.getElementById('itemSn').value.trim();
+            const snInput = document.getElementById('itemSn').value.trim();
             const name = document.getElementById('itemName').value.trim();
+            const category = document.getElementById('itemCategory').value;
+            const subCategory = document.getElementById('itemSubCategory').value;
             const brand = document.getElementById('itemBrand').value.trim();
             const model = document.getElementById('itemModel').value.trim();
-            const category = document.getElementById('itemCategory').value;
             const status = document.getElementById('itemStatus').value;
-            const receivedDate = document.getElementById('itemReceivedDate').value.trim() || getThaiDateTime();
+            const receivedDate = document.getElementById('itemReceivedDate').value.trim() || new Date().toLocaleDateString('th-TH', {year:'numeric', month:'short', day:'numeric'});
             const note = document.getElementById('itemNote').value.trim();
 
             if (index === "") {
-                const sns = snRaw.split(',').map(s => s.trim()).filter(s => s.length > 0);
-                if (sns.length === 0) return;
-
+                // เพิ่มใหม่ (สามารถคั่นด้วยเครื่องหมายจุลภาค , เพื่อเพิ่มทีละหลายเครื่อง)
+                const sns = snInput.split(',').map(s => s.trim()).filter(s => s !== "");
                 sns.forEach(sn => {
                     inventory.push({
-                        sn, name, brand, model, category, status,
-                        holder: "", receivedDate, note
+                        sn: sn,
+                        name: name,
+                        category: category,
+                        subCategory: subCategory,
+                        brand: brand,
+                        model: model,
+                        status: status,
+                        holder: status === 'ถูกเบิก' ? (currentUser ? currentUser.username : '-') : '-',
+                        receivedDate: receivedDate,
+                        note: note
                     });
                 });
-                await saveData(`Add ${sns.length} new items`);
             } else {
-                const i = parseInt(index);
-                inventory[i].sn = snRaw;
-                inventory[i].name = name;
-                inventory[i].brand = brand;
-                inventory[i].model = model;
-                inventory[i].category = category;
-                inventory[i].status = status;
-                inventory[i].receivedDate = receivedDate;
-                inventory[i].note = note;
-                await saveData(`Update item ${snRaw}`);
+                // แก้ไข
+                inventory[index].sn = snInput;
+                inventory[index].name = name;
+                inventory[index].category = category;
+                inventory[index].subCategory = subCategory;
+                inventory[index].brand = brand;
+                inventory[index].model = model;
+                inventory[index].status = status;
+                inventory[index].receivedDate = receivedDate;
+                inventory[index].note = note;
             }
 
             closeModal();
-        }
-
-        async function deleteItem(index) {
-            if (confirm("⚠️ คุณต้องการลบอุปกรณ์นี้ใช่หรือไม่? (รายการจะถูกย้ายไปที่ถังขยะ สามารถกู้คืนได้)")) {
-                const removed = inventory.splice(index, 1)[0];
-                removed.deletedAt = getThaiDateTime();
-                trashBin.push(removed);
-                localStorage.setItem('inventoryTrashBinV1', JSON.stringify(trashBin));
-                await saveData(`Delete item ${removed.sn} to trash`);
+            const success = await saveDataToGitHub(index === "" ? "Add new equipment" : "Update equipment");
+            if (success) {
+                renderTable();
             }
         }
 
-        // ระบบถังขยะและกู้คืน
+        async function deleteItem(index) {
+            if (!confirm("คุณต้องการลบอุปกรณ์นี้ใช่หรือไม่? (ข้อมูลจะย้ายไปถังขยะ)")) return;
+            const removed = inventory.splice(index, 1)[0];
+            removed.deletedAt = new Date().toLocaleString('th-TH');
+            trashBin.push(removed);
+            localStorage.setItem('inventoryTrashBinV1', JSON.stringify(trashBin));
+
+            const success = await saveDataToGitHub("Delete equipment to trash");
+            if (success) {
+                renderTable();
+            }
+        }
+
         function openTrashModal() {
-            renderTrashTable();
+            const tbody = document.getElementById('trashTableBody');
+            tbody.innerHTML = '';
+            if (trashBin.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">ถังขยะว่างเปล่า</td></tr>`;
+            } else {
+                trashBin.forEach((item, idx) => {
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50">
+                            <td class="p-3 font-mono font-bold">${item.sn || '-'}</td>
+                            <td class="p-3">${item.name || '-'}</td>
+                            <td class="p-3"><span class="px-2 py-1 bg-slate-100 rounded text-xs">${item.category || '-'} (${item.subCategory || '-'})</span></td>
+                            <td class="p-3 text-xs text-slate-500">${item.deletedAt || '-'}</td>
+                            <td class="p-3 text-center space-x-1">
+                                <button onclick="restoreFromTrash(${idx})" class="px-2 py-1 bg-emerald-600 text-white rounded text-xs hover:bg-emerald-700">กู้คืน</button>
+                                <button onclick="permanentDelete(${idx})" class="px-2 py-1 bg-rose-600 text-white rounded text-xs hover:bg-rose-700">ลบถาวร</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
             document.getElementById('trashModal').classList.remove('hidden');
         }
 
@@ -752,67 +748,45 @@
             document.getElementById('trashModal').classList.add('hidden');
         }
 
-        function renderTrashTable() {
-            const tbody = document.getElementById('trashTableBody');
-            tbody.innerHTML = '';
-            if (trashBin.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center p-6 text-slate-400">ไม่มีรายการในถังขยะ</td></tr>`;
-                return;
-            }
-
-            trashBin.forEach((item, index) => {
-                const row = document.createElement('tr');
-                row.className = "hover:bg-slate-50";
-                row.innerHTML = `
-                    <td class="p-3 font-mono font-bold text-slate-700">${item.sn || '-'}</td>
-                    <td class="p-3 font-medium">${item.name || '-'}</td>
-                    <td class="p-3 text-slate-600">${item.category || '-'}</td>
-                    <td class="p-3 text-xs text-slate-400">${item.deletedAt || '-'}</td>
-                    <td class="p-3 text-center">
-                        <div class="flex justify-center gap-2">
-                            <button onclick="restoreItem(${index})" class="px-2.5 py-1 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-xs font-semibold transition">♻️ กู้คืน</button>
-                            <button onclick="permanentDelete(${index})" class="px-2.5 py-1 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-xs font-semibold transition">🗑️ ลบถาวร</button>
-                        </div>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-        async function restoreItem(index) {
-            const restored = trashBin.splice(index, 1)[0];
-            delete restored.deletedAt;
-            inventory.push(restored);
+        async function restoreFromTrash(idx) {
+            const item = trashBin.splice(idx, 1)[0];
+            delete item.deletedAt;
+            inventory.push(item);
             localStorage.setItem('inventoryTrashBinV1', JSON.stringify(trashBin));
-            await saveData(`Restore item ${restored.sn} from trash`);
-            renderTrashTable();
-            alert(`✅ กู้คืนอุปกรณ์ ${restored.sn} เรียบร้อยแล้ว!`);
-        }
-
-        async function permanentDelete(index) {
-            if (confirm("⚠️ การลบถาวรจะไม่สามารถกู้คืนได้อีก คุณแน่ใจหรือไม่?")) {
-                trashBin.splice(index, 1);
-                localStorage.setItem('inventoryTrashBinV1', JSON.stringify(trashBin));
-                renderTrashTable();
+            
+            const success = await saveDataToGitHub("Restore equipment from trash");
+            if (success) {
+                openTrashModal();
+                renderTable();
             }
         }
 
-        function openTransModal(index, mode) {
+        async function permanentDelete(idx) {
+            if (!confirm("ต้องการลบรายการนี้ถาวรใช่หรือไม่?")) return;
+            trashBin.splice(idx, 1);
+            localStorage.setItem('inventoryTrashBinV1', JSON.stringify(trashBin));
+            openTrashModal();
+        }
+
+        function openTransactionModal(index, mode) {
             const item = inventory[index];
             document.getElementById('transIndex').value = index;
             document.getElementById('transMode').value = mode;
             document.getElementById('transItemInfo').innerText = `อุปกรณ์: ${item.name} (S/N: ${item.sn})`;
+            document.getElementById('transName').value = mode === 'borrow' ? '' : (item.holder !== '-' ? item.holder : '');
+            document.getElementById('transNote').value = '';
 
             if (mode === 'borrow') {
                 document.getElementById('transTitle').innerText = "🔄 ทำรายการเบิกอุปกรณ์";
                 document.getElementById('nameLabel').innerText = "ชื่อผู้เบิก / หน่วยงาน";
-                document.getElementById('transName').value = "";
+                document.getElementById('transSubmitBtn').innerText = "ยืนยันการเบิก";
+                document.getElementById('transSubmitBtn').className = "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium";
             } else {
                 document.getElementById('transTitle').innerText = "📥 ทำรายการคืนอุปกรณ์";
-                document.getElementById('nameLabel').innerText = "ผู้ส่งคืน / ผู้ตรวจสอบรับเข้า";
-                document.getElementById('transName').value = item.holder || "";
+                document.getElementById('nameLabel').innerText = "ผู้ส่งคืน / หมายเหตุการคืน";
+                document.getElementById('transSubmitBtn').innerText = "ยืนยันการคืนเข้าคลัง";
+                document.getElementById('transSubmitBtn').className = "px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium";
             }
-            document.getElementById('transNote').value = "";
             document.getElementById('transactionModal').classList.remove('hidden');
         }
 
@@ -820,114 +794,128 @@
             document.getElementById('transactionModal').classList.add('hidden');
         }
 
-        async function executeTransaction(e) {
-            e.preventDefault();
-            const index = parseInt(document.getElementById('transIndex').value);
+        async function executeTransaction(event) {
+            event.preventDefault();
+            const index = document.getElementById('transIndex').value;
             const mode = document.getElementById('transMode').value;
             const name = document.getElementById('transName').value.trim();
             const note = document.getElementById('transNote').value.trim();
 
-            const item = inventory[index];
             if (mode === 'borrow') {
-                item.status = 'ถูกเบิก';
-                item.holder = name;
-                if (note) item.note = note;
-                await saveData(`Borrow item ${item.sn} by ${name}`);
+                inventory[index].status = 'ถูกเบิก';
+                inventory[index].holder = name;
+                if (note) inventory[index].note = note;
             } else {
-                item.status = 'ในคลัง';
-                item.holder = '';
-                if (note) item.note = note;
-                await saveData(`Return item ${item.sn}`);
+                inventory[index].status = 'ในคลัง';
+                inventory[index].holder = '-';
+                if (note) inventory[index].note = 'คืนจาก: ' + name + (note ? ' (' + note + ')' : '');
             }
 
             closeTransModal();
+            const success = await saveDataToGitHub(mode === 'borrow' ? "Borrow equipment" : "Return equipment");
+            if (success) {
+                renderTable();
+            }
         }
 
-        function openImportModal() {
-            document.getElementById('excelFile').value = '';
-            document.getElementById('importModal').classList.remove('hidden');
-        }
+        function renderTable() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const catFilter = document.getElementById('categoryFilter').value;
+            const subCatFilter = document.getElementById('subCategoryFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            const tbody = document.getElementById('inventoryTableBody');
+            tbody.innerHTML = '';
 
-        function closeImportModal() {
-            document.getElementById('importModal').classList.add('hidden');
-        }
+            let total = inventory.length;
+            let stockCount = 0;
+            let borrowCount = 0;
 
-        async function processExcelImport() {
-            const fileInput = document.getElementById('excelFile');
-            const category = document.getElementById('importCategory').value;
-            if (fileInput.files.length === 0) {
-                alert("⚠️ กรุณาเลือกไฟล์ Excel");
+            let filtered = inventory.filter(item => {
+                const matchSearch = (item.sn || '').toLowerCase().includes(search) ||
+                                    (item.name || '').toLowerCase().includes(search) ||
+                                    (item.brand || '').toLowerCase().includes(search) ||
+                                    (item.model || '').toLowerCase().includes(search) ||
+                                    (item.holder || '').toLowerCase().includes(search) ||
+                                    (item.subCategory || '').toLowerCase().includes(search);
+                const matchCat = catFilter === "" || item.category === catFilter;
+                const matchSubCat = subCatFilter === "" || item.subCategory === subCatFilter;
+                const matchStatus = statusFilter === "" || item.status === statusFilter;
+
+                if (item.status === 'ในคลัง') stockCount++;
+                if (item.status === 'ถูกเบิก') borrowCount++;
+
+                return matchSearch && matchCat && matchSubCat && matchStatus;
+            });
+
+            document.getElementById('sumTotal').innerText = total;
+            document.getElementById('sumStock').innerText = stockCount;
+            document.getElementById('sumBorrowed').innerText = borrowCount;
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="11" class="p-8 text-center text-slate-400">ไม่พบข้อมูลอุปกรณ์ในระบบ</td></tr>`;
                 return;
             }
 
-            const file = fileInput.files[0];
-            const reader = new FileReader();
+            filtered.forEach((item, originalIndex) => {
+                const realIndex = inventory.indexOf(item);
+                let badgeClass = "bg-emerald-100 text-emerald-700";
+                if (item.status === 'ถูกเบิก') badgeClass = "bg-blue-100 text-blue-700";
+                if (item.status === 'ส่งซ่อม') badgeClass = "bg-rose-100 text-rose-700";
 
-            reader.onload = async function(e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
-                    const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="p-4 text-slate-400 text-xs">${originalIndex + 1}</td>
+                        <td class="p-4 font-mono font-bold text-blue-600 cursor-pointer underline" onclick="showQrCode('${item.sn}', '${item.name}')" title="คลิกดู QR Code">${item.sn || '-'}</td>
+                        <td class="p-4 font-semibold text-slate-800">${item.name || '-'}</td>
+                        <td class="p-4"><span class="px-2.5 py-1 bg-slate-100 rounded-lg text-xs font-medium text-slate-600">${item.category || '-'}</span><br><span class="text-[11px] text-blue-500 font-medium">${item.subCategory || '-'}</span></td>
+                        <td class="p-4 text-xs text-slate-600">${item.brand || '-'} ${item.model || ''}</td>
+                        <td class="p-4 text-center"><span class="px-3 py-1 rounded-full text-xs font-bold ${badgeClass}">${item.status || '-'}</span></td>
+                        <td class="p-4 text-xs text-slate-600 font-medium">${item.holder || '-'}</td>
+                        <td class="p-4 text-xs text-slate-400">${item.receivedDate || '-'}</td>
+                        <td class="p-4 text-xs text-slate-500">${item.note || '-'}</td>
+                        <td class="p-4 text-center">
+                            ${item.status === 'ในคลัง' ? 
+                                `<button onclick="openTransactionModal(${realIndex}, 'borrow')" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition shadow-sm">เบิก</button>` :
+                                item.status === 'ถูกเบิก' ? 
+                                `<button onclick="openTransactionModal(${realIndex}, 'return')" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-medium transition shadow-sm">คืน</button>` :
+                                `<span class="text-xs text-slate-400">-</span>`
+                            }
+                        </td>
+                        <td class="p-4 text-center admin-only space-x-1">
+                            <button onclick="openEditModal(${realIndex})" class="p-1.5 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-lg text-xs transition" title="แก้ไข">✏️</button>
+                            <button onclick="deleteItem(${realIndex})" class="p-1.5 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 rounded-lg text-xs transition" title="ลบ">🗑️</button>
+                        </td>
+                    </tr>
+                `;
+            });
 
-                    if (json.length < 2) {
-                        alert("❌ ไฟล์ Excel ไม่มีข้อมูลหรือรูปแบบไม่ถูกต้อง");
-                        return;
-                    }
-
-                    let count = 0;
-                    for (let i = 1; i < json.length; i++) {
-                        const row = json[i];
-                        if (row && row.length > 0) {
-                            const sn = row[0] ? String(row[0]).trim() : `AUTO-${Date.now()}-${i}`;
-                            const name = row[1] ? String(row[1]).trim() : 'ไม่ระบุชื่อ';
-                            const brand = row[2] ? String(row[2]).trim() : '';
-                            const model = row[3] ? String(row[3]).trim() : '';
-                            const receivedDate = row[4] ? String(row[4]).trim() : getThaiDateTime();
-                            const note = row[5] ? String(row[5]).trim() : '';
-
-                            inventory.push({
-                                sn, name, brand, model, category,
-                                status: 'ในคลัง', holder: '', receivedDate, note
-                            });
-                            count++;
-                        }
-                    }
-
-                    await saveData(`Import ${count} items from Excel`);
-                    closeImportModal();
-                    alert(`✅ นำเข้าข้อมูลสำเร็จ ${count} รายการ!`);
-                } catch (err) {
-                    console.error(err);
-                    alert("❌ เกิดข้อผิดพลาดในการอ่านไฟล์ Excel");
-                }
-            };
-            reader.readAsArrayBuffer(file);
+            // ตรวจสอบสิทธิ์ปุ่มจัดการในตาราง
+            if (currentUser && currentUser.role !== 'Admin') {
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+            }
         }
 
-        function exportToExcel() {
-            if (inventory.length === 0) {
-                alert("⚠️ ไม่มีข้อมูลสำหรับส่งออก");
-                return;
-            }
-            const exportData = inventory.map((item, idx) => ({
-                "ลำดับ": idx + 1,
-                "รหัส / S/N": item.sn,
-                "ชื่ออุปกรณ์": item.name,
-                "ยี่ห้อ": item.brand,
-                "รุ่น": item.model,
-                "หมวดหมู่": item.category,
-                "สถานะ": item.status,
-                "ผู้ถือครอง": item.holder,
-                "รับมาเมื่อ": item.receivedDate,
-                "หมายเหตุ": item.note
-            }));
+        function filterByCard(status) {
+            document.getElementById('statusFilter').value = status === 'all' ? '' : status;
+            document.getElementById('searchInput').value = '';
+            document.getElementById('categoryFilter').value = '';
+            renderTable();
+        }
 
-            const worksheet = XLSX.utils.json_to_sheet(exportData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Inventory");
-            XLSX.writeFile(workbook, `Inventory_Report_${Date.now()}.xlsx`);
+        function showQrCode(sn, name) {
+            document.getElementById('qrItemName').innerText = `${name} (${sn})`;
+            const container = document.getElementById('qrcode');
+            container.innerHTML = '';
+            new QRCode(container, {
+                text: sn || 'NO-SN',
+                width: 150,
+                height: 150
+            });
+            document.getElementById('qrModal').classList.remove('hidden');
+        }
+
+        function closeQrModal() {
+            document.getElementById('qrModal').classList.add('hidden');
         }
 
         function openUserModal() {
@@ -942,60 +930,136 @@
         function renderUserTable() {
             const tbody = document.getElementById('userTableBody');
             tbody.innerHTML = '';
-            users.forEach((u, i) => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="p-3 font-semibold">${u.username}</td>
-                    <td class="p-3 text-blue-600">${u.role}</td>
-                    <td class="p-3 text-center">
-                        ${u.username !== 'admin' ? `<button onclick="deleteUser(${i})" class="text-rose-500 hover:underline text-xs">ลบ</button>` : '<span class="text-slate-300 text-xs">ระบบหลัก</span>'}
-                    </td>
+            users.forEach((u, idx) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="p-3 font-semibold">${u.username}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded text-xs ${u.role === 'Admin' ? 'bg-purple-100 text-purple-700 font-bold' : 'bg-slate-100 text-slate-600'}">${u.role}</span></td>
+                        <td class="p-3 text-center">
+                            ${u.username !== 'admin' ? `<button onclick="deleteUser(${idx})" class="text-rose-600 hover:underline text-xs">ลบ</button>` : '<span class="text-slate-300 text-xs">ระบบหลัก</span>'}
+                        </td>
+                    </tr>
                 `;
-                tbody.appendChild(row);
             });
         }
 
-        function addNewUser(e) {
-            e.preventDefault();
-            const username = document.getElementById('newUsername').value.trim();
-            const password = document.getElementById('newPassword').value.trim();
-            const role = document.getElementById('newRole').value;
+        function addNewUser(event) {
+            event.preventDefault();
+            const u = document.getElementById('newUsername').value.trim();
+            const p = document.getElementById('newPassword').value.trim();
+            const r = document.getElementById('newRole').value;
 
-            if (users.some(x => x.username === username)) {
-                alert("❌ มีชื่อผู้ใช้นี้อยู่ในระบบแล้ว");
+            if (users.some(x => x.username === u)) {
+                alert("❌ Username นี้มีอยู่ในระบบแล้ว");
                 return;
             }
 
-            users.push({ username, password, role });
+            users.push({ username: u, password: p, role: r });
             localStorage.setItem('inventoryUsersV1', JSON.stringify(users));
             document.getElementById('newUsername').value = '';
             document.getElementById('newPassword').value = '';
             renderUserTable();
-            alert("✅ เพิ่มผู้ใช้งานสำเร็จ!");
+            alert("✅ เพิ่มผู้ใช้งานสำเร็จ");
         }
 
-        function deleteUser(index) {
-            if (confirm("ต้องการลบผู้ใช้นี้ใช่หรือไม่?")) {
-                users.splice(index, 1);
-                localStorage.setItem('inventoryUsersV1', JSON.stringify(users));
-                renderUserTable();
+        function deleteUser(idx) {
+            if (!confirm("ต้องการลบผู้ใช้นี้ใช่หรือไม่?")) return;
+            users.splice(idx, 1);
+            localStorage.setItem('inventoryUsersV1', JSON.stringify(users));
+            renderUserTable();
+        }
+
+        function openImportModal() {
+            document.getElementById('excelFile').value = '';
+            document.getElementById('importModal').classList.remove('hidden');
+        }
+
+        function closeImportModal() {
+            document.getElementById('importModal').classList.add('hidden');
+        }
+
+        function processExcelImport() {
+            const fileInput = document.getElementById('excelFile');
+            const category = document.getElementById('importCategory').value;
+            if (fileInput.files.length === 0) {
+                alert("⚠️ กรุณาเลือกไฟล์ Excel");
+                return;
             }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet);
+
+                    let count = 0;
+                    json.forEach(row => {
+                        const sn = row['S/N'] || row['Serial'] || row['รหัส'] || row['sn'] || '';
+                        const name = row['ชื่ออุปกรณ์'] || row['Name'] || row['name'] || 'อุปกรณ์นำเข้า';
+                        const subCategory = row['หมวดหมู่ย่อย'] || subCategoryMapping[category][0];
+                        const brand = row['ยี่ห้อ'] || row['Brand'] || '';
+                        const model = row['รุ่น'] || row['Model'] || '';
+                        const note = row['หมายเหตุ'] || row['Note'] || '';
+
+                        if (sn) {
+                            inventory.push({
+                                sn: String(sn),
+                                name: String(name),
+                                category: category,
+                                subCategory: String(subCategory),
+                                brand: String(brand),
+                                model: String(model),
+                                status: 'ในคลัง',
+                                holder: '-',
+                                receivedDate: new Date().toLocaleDateString('th-TH', {year:'numeric', month:'short', day:'numeric'}),
+                                note: String(note)
+                            });
+                            count++;
+                        }
+                    });
+
+                    closeImportModal();
+                    const success = await saveDataToGitHub("Import Excel data");
+                    if (success) {
+                        alert(`✅ นำเข้าข้อมูลสำเร็จ ${count} รายการ`);
+                        renderTable();
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert("❌ เกิดข้อผิดพลาดในการอ่านไฟล์ Excel");
+                }
+            };
+            reader.readAsArrayBuffer(file);
         }
 
-        function openQrModal(sn, name) {
-            document.getElementById('qrItemName').innerText = `${name} (S/N: ${sn})`;
-            const qrContainer = document.getElementById('qrcode');
-            qrContainer.innerHTML = '';
-            new QRCode(qrContainer, {
-                text: sn,
-                width: 150,
-                height: 150
-            });
-            document.getElementById('qrModal').classList.remove('hidden');
-        }
+        function exportToExcel() {
+            if (inventory.length === 0) {
+                alert("⚠️ ไม่มีข้อมูลสำหรับส่งออก");
+                return;
+            }
 
-        function closeQrModal() {
-            document.getElementById('qrModal').classList.add('hidden');
+            const exportData = inventory.map((item, idx) => ({
+                'ลำดับ': idx + 1,
+                'รหัส / S/N': item.sn,
+                'ชื่ออุปกรณ์': item.name,
+                'หมวดหมู่หลัก': item.category,
+                'หมวดหมู่ย่อย': item.subCategory,
+                'ยี่ห้อ': item.brand,
+                'รุ่น': item.model,
+                'สถานะ': item.status,
+                'ผู้ถือครองปัจจุบัน': item.holder,
+                'รับมาเมื่อ': item.receivedDate,
+                'หมายเหตุ': item.note
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(exportData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Inventory");
+            XLSX.writeFile(workbook, "Inventory_Database.xlsx");
         }
     </script>
 </body>
