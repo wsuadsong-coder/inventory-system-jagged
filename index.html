@@ -54,6 +54,7 @@
             <div class="flex flex-wrap items-center gap-2">
                 <div id="adminActionButtons" class="flex flex-wrap gap-2">
                     <button onclick="openAddModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-sm font-medium transition shadow-sm">➕ เพิ่มอุปกรณ์</button>
+                    <button onclick="openTrashModal()" class="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-xl text-sm font-medium transition shadow-sm">🗑️ ถังขยะ / กู้คืน</button>
                     <button onclick="openImportModal()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-xl text-sm font-medium transition shadow-sm">📂 นำเข้า Excel</button>
                     <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-sm font-medium transition shadow-sm">📥 โหลด Excel</button>
                     <button onclick="openGithubConfigModal()" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-xl text-sm font-medium transition shadow-sm">⚙️ ตั้งค่า GitHub</button>
@@ -155,6 +156,34 @@
         </div>
     </div>
 
+    <!-- Modal ถังขยะ / กู้คืนข้อมูล -->
+    <div id="trashModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-rose-600">🗑️ ถังขยะ / กู้คืนรายการที่ถูกลบ</h3>
+                <button onclick="closeTrashModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+            <p class="text-xs text-slate-500 mb-4">รายการที่เคยถูกลบจะถูกเก็บไว้ที่นี่ คุณสามารถกด "กู้คืน" เพื่อนำกลับเข้าคลัง หรือกด "ลบถาวร" ได้</p>
+            <div class="overflow-y-auto flex-1 border rounded-xl mb-4">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-100 text-slate-500 text-xs sticky top-0">
+                        <tr>
+                            <th class="p-3">รหัส / S/N</th>
+                            <th class="p-3">ชื่ออุปกรณ์</th>
+                            <th class="p-3">หมวดหมู่</th>
+                            <th class="p-3">วันที่ลบ</th>
+                            <th class="p-3 text-center">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trashTableBody" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+            <div class="flex justify-end">
+                <button onclick="closeTrashModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-medium">ปิด</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal ตั้งค่า GitHub -->
     <div id="githubConfigModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl">
@@ -233,6 +262,10 @@
                                 <option value="ส่งซ่อม">ส่งซ่อม/ชำรุด</option>
                             </select>
                         </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">รับมาเมื่อ</label>
+                        <input type="text" id="itemReceivedDate" class="w-full px-3 py-2 border rounded-xl text-sm" placeholder="เช่น 1 ม.ค. 2569 หรือปล่อยว่างเพื่อใช้วันเวลาปัจจุบัน">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">หมายเหตุ</label>
@@ -349,6 +382,7 @@
 
     <script>
         let inventory = [];
+        let trashBin = JSON.parse(localStorage.getItem('inventoryTrashBinV1')) || [];
         let fileSha = "";
 
         let users = JSON.parse(localStorage.getItem('inventoryUsersV1')) || [
@@ -527,91 +561,82 @@
             }
         }
 
-        function filterByCard(status) {
-            document.getElementById('statusFilter').value = status === 'all' ? '' : status;
-            renderTable();
-        }
-
-        function updateDashboard(dataArray) {
-            const stockCount = dataArray.filter(item => item.status === 'ในคลัง').length;
-            const borrowedCount = dataArray.filter(item => item.status === 'ถูกเบิก').length;
-
-            document.getElementById('sumStock').innerText = stockCount.toLocaleString();
-            document.getElementById('sumBorrowed').innerText = borrowedCount.toLocaleString();
-            document.getElementById('sumTotal').innerText = dataArray.length.toLocaleString();
-        }
-
-        function renderTable() {
+        function renderTable(customData = null) {
             const tbody = document.getElementById('inventoryTableBody');
-            const searchInput = document.getElementById('searchInput').value.toLowerCase();
-            const categoryFilter = document.getElementById('categoryFilter').value;
-            const statusFilter = document.getElementById('statusFilter').value;
-
             tbody.innerHTML = '';
 
-            let filtered = inventory.filter(item => {
-                const matchSearch = (item.sn || '').toLowerCase().includes(searchInput) ||
-                                    (item.name || '').toLowerCase().includes(searchInput) ||
-                                    (item.brand || '').toLowerCase().includes(searchInput) ||
-                                    (item.model || '').toLowerCase().includes(searchInput) ||
-                                    (item.holder || '').toLowerCase().includes(searchInput) ||
-                                    (item.note || '').toLowerCase().includes(searchInput);
-                const matchCategory = categoryFilter === '' || item.category === categoryFilter;
-                const matchStatus = statusFilter === '' || item.status === statusFilter;
-                return matchSearch && matchCategory && matchStatus;
+            const searchTxt = document.getElementById('searchInput').value.toLowerCase();
+            const catFilter = document.getElementById('categoryFilter').value;
+            const statFilter = document.getElementById('statusFilter').value;
+
+            let dataToDisplay = customData || inventory;
+
+            let filtered = dataToDisplay.filter(item => {
+                const matchSearch = (item.sn || '').toLowerCase().includes(searchTxt) ||
+                                    (item.name || '').toLowerCase().includes(searchTxt) ||
+                                    (item.brand || '').toLowerCase().includes(searchTxt) ||
+                                    (item.model || '').toLowerCase().includes(searchTxt) ||
+                                    (item.holder || '').toLowerCase().includes(searchTxt) ||
+                                    (item.note || '').toLowerCase().includes(searchTxt);
+                const matchCat = catFilter === '' || item.category === catFilter;
+                const matchStat = statFilter === '' || item.status === statFilter;
+                return matchSearch && matchCat && matchStat;
             });
 
-            updateDashboard(inventory);
+            let total = inventory.length;
+            let stockCount = inventory.filter(x => x.status === 'ในคลัง').length;
+            let borrowedCount = inventory.filter(x => x.status === 'ถูกเบิก').length;
+
+            document.getElementById('sumTotal').innerText = total;
+            document.getElementById('sumStock').innerText = stockCount;
+            document.getElementById('sumBorrowed').innerText = borrowedCount;
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="11" class="p-8 text-center text-slate-400">ไม่พบข้อมูลอุปกรณ์ในระบบ</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="11" class="text-center p-8 text-slate-400">ไม่พบข้อมูลอุปกรณ์ในระบบ</td></tr>`;
                 return;
             }
 
             filtered.forEach((item, index) => {
-                const globalIndex = inventory.indexOf(item);
-                
-                let statusBadge = '';
+                const originalIndex = inventory.indexOf(item);
+                let badgeClass = 'bg-slate-100 text-slate-700';
+                if (item.status === 'ในคลัง') badgeClass = 'bg-emerald-50 text-emerald-600 border border-emerald-200';
+                else if (item.status === 'ถูกเบิก') badgeClass = 'bg-blue-50 text-blue-600 border border-blue-200';
+                else if (item.status === 'ส่งซ่อม') badgeClass = 'bg-amber-50 text-amber-600 border border-amber-200';
+
+                let actionBtn = '';
                 if (item.status === 'ในคลัง') {
-                    statusBadge = `<span class="px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-full text-xs font-semibold border border-emerald-200">📦 ในคลัง</span>`;
+                    actionBtn = `<button onclick="openTransModal(${originalIndex}, 'borrow')" class="px-2.5 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-semibold transition">🔄 เบิก</button>`;
                 } else if (item.status === 'ถูกเบิก') {
-                    statusBadge = `<span class="px-2.5 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-semibold border border-blue-200">🔄 ถูกเบิก</span>`;
+                    actionBtn = `<button onclick="openTransModal(${originalIndex}, 'return')" class="px-2.5 py-1 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-xs font-semibold transition">📥 คืน</button>`;
                 } else {
-                    statusBadge = `<span class="px-2.5 py-1 bg-rose-50 text-rose-600 rounded-full text-xs font-semibold border border-rose-200">🛠️ ส่งซ่อม</span>`;
+                    actionBtn = `<span class="text-xs text-slate-400">-</span>`;
                 }
 
-                let transBtn = '';
-                if (item.status === 'ในคลัง') {
-                    transBtn = `<button onclick="openTransModal(${globalIndex}, 'borrow')" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition">เบิก</button>`;
-                } else if (item.status === 'ถูกเบิก') {
-                    transBtn = `<button onclick="openTransModal(${globalIndex}, 'return')" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-medium transition">คืน</button>`;
-                } else {
-                    transBtn = `<span class="text-xs text-slate-400">-</span>`;
-                }
-
-                let tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50/80 transition";
-                tr.innerHTML = `
-                    <td class="p-4 text-slate-500 text-xs">${index + 1}</td>
-                    <td class="p-4 font-mono font-bold text-slate-700">
-                        <span class="cursor-pointer text-blue-600 hover:underline" onclick="showQrCode('${item.sn}', '${item.name}')" title="คลิกดู QR Code">${item.sn}</span>
+                const row = document.createElement('tr');
+                row.className = "hover:bg-slate-50/80 transition";
+                row.innerHTML = `
+                    <td class="p-4 font-mono text-xs text-slate-400">${index + 1}</td>
+                    <td class="p-4 font-mono font-bold text-blue-600">
+                        <span onclick="openQrModal('${item.sn}', '${item.name}')" class="cursor-pointer hover:underline" title="คลิกดู QR Code">${item.sn || '-'}</span>
                     </td>
-                    <td class="p-4 font-medium text-slate-800">${item.name}</td>
+                    <td class="p-4 font-medium text-slate-700">${item.name || '-'}</td>
                     <td class="p-4 text-slate-600">${item.brand || '-'}</td>
                     <td class="p-4 text-slate-600">${item.model || '-'}</td>
-                    <td class="p-4 text-center">${statusBadge}</td>
-                    <td class="p-4 text-slate-600">${item.holder || '-'}</td>
-                    <td class="p-4 text-xs text-slate-500">${item.receivedDate || '-'}</td>
-                    <td class="p-4 text-xs text-slate-500">${item.note || '-'}</td>
-                    <td class="p-4 text-center">${transBtn}</td>
+                    <td class="p-4 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${badgeClass}">${item.status || 'ในคลัง'}</span></td>
+                    <td class="p-4 text-slate-600 font-medium">${item.holder || '-'}</td>
+                    <td class="p-4 text-slate-500 text-xs">
+                        <input type="text" value="${item.receivedDate || '-'}" onchange="updateInlineReceivedDate(${originalIndex}, this.value)" class="w-28 px-2 py-1 border rounded text-xs bg-slate-50 focus:bg-white" title="คลิกเพื่อแก้ไขวันที่รับ">
+                    </td>
+                    <td class="p-4 text-slate-500 text-xs">${item.note || '-'}</td>
+                    <td class="p-4 text-center">${actionBtn}</td>
                     <td class="p-4 text-center admin-only">
                         <div class="flex justify-center gap-1">
-                            <button onclick="openEditModal(${globalIndex})" class="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg text-xs" title="แก้ไข">✏️</button>
-                            <button onclick="deleteItem(${globalIndex})" class="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs" title="ลบ">🗑️</button>
+                            <button onclick="openEditModal(${originalIndex})" class="p-1.5 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg text-xs transition" title="แก้ไข">✏️</button>
+                            <button onclick="deleteItem(${originalIndex})" class="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-xs transition" title="ลบ">🗑️</button>
                         </div>
                     </td>
                 `;
-                tbody.appendChild(tr);
+                tbody.appendChild(row);
             });
 
             if (currentUser && currentUser.role !== 'Admin') {
@@ -619,15 +644,33 @@
             }
         }
 
-        // Modal เพิ่ม/แก้ไข
+        async function updateInlineReceivedDate(index, newDate) {
+            inventory[index].receivedDate = newDate;
+            await saveData(`Update received date for ${inventory[index].sn}`);
+        }
+
+        function filterByCard(status) {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('categoryFilter').value = '';
+            if (status === 'all') {
+                document.getElementById('statusFilter').value = '';
+            } else {
+                document.getElementById('statusFilter').value = status;
+            }
+            renderTable();
+        }
+
         function openAddModal() {
             document.getElementById('modalTitle').innerText = "เพิ่มอุปกรณ์ใหม่";
-            document.getElementById('itemIndex').value = '';
-            document.getElementById('itemSn').value = '';
-            document.getElementById('itemName').value = '';
-            document.getElementById('itemBrand').value = '';
-            document.getElementById('itemModel').value = '';
-            document.getElementById('itemNote').value = '';
+            document.getElementById('itemIndex').value = "";
+            document.getElementById('itemSn').value = "";
+            document.getElementById('itemName').value = "";
+            document.getElementById('itemBrand').value = "";
+            document.getElementById('itemModel').value = "";
+            document.getElementById('itemCategory').value = "โทรศัพท์";
+            document.getElementById('itemStatus').value = "ในคลัง";
+            document.getElementById('itemReceivedDate').value = getThaiDateTime();
+            document.getElementById('itemNote').value = "";
             document.getElementById('itemModal').classList.remove('hidden');
         }
 
@@ -635,13 +678,14 @@
             const item = inventory[index];
             document.getElementById('modalTitle').innerText = "แก้ไขข้อมูลอุปกรณ์";
             document.getElementById('itemIndex').value = index;
-            document.getElementById('itemSn').value = item.sn;
-            document.getElementById('itemName').value = item.name;
-            document.getElementById('itemBrand').value = item.brand || '';
-            document.getElementById('itemModel').value = item.model || '';
-            document.getElementById('itemCategory').value = item.category || 'อื่นๆ';
-            document.getElementById('itemStatus').value = item.status;
-            document.getElementById('itemNote').value = item.note || '';
+            document.getElementById('itemSn').value = item.sn || "";
+            document.getElementById('itemName').value = item.name || "";
+            document.getElementById('itemBrand').value = item.brand || "";
+            document.getElementById('itemModel').value = item.model || "";
+            document.getElementById('itemCategory').value = item.category || "โทรศัพท์";
+            document.getElementById('itemStatus').value = item.status || "ในคลัง";
+            document.getElementById('itemReceivedDate').value = item.receivedDate || getThaiDateTime();
+            document.getElementById('itemNote').value = item.note || "";
             document.getElementById('itemModal').classList.remove('hidden');
         }
 
@@ -652,75 +696,123 @@
         async function saveItem(e) {
             e.preventDefault();
             const index = document.getElementById('itemIndex').value;
-            const snInput = document.getElementById('itemSn').value.trim();
+            const snRaw = document.getElementById('itemSn').value.trim();
             const name = document.getElementById('itemName').value.trim();
             const brand = document.getElementById('itemBrand').value.trim();
             const model = document.getElementById('itemModel').value.trim();
             const category = document.getElementById('itemCategory').value;
             const status = document.getElementById('itemStatus').value;
+            const receivedDate = document.getElementById('itemReceivedDate').value.trim() || getThaiDateTime();
             const note = document.getElementById('itemNote').value.trim();
-            const currentDate = getThaiDateTime();
 
-            if (index === '') {
-                // เพิ่มใหม่ (รองรับการใส่หลาย S/N คั่นด้วยจุลภาค)
-                const sns = snInput.split(',').map(s => s.trim()).filter(s => s !== '');
+            if (index === "") {
+                const sns = snRaw.split(',').map(s => s.trim()).filter(s => s.length > 0);
+                if (sns.length === 0) return;
+
                 sns.forEach(sn => {
                     inventory.push({
-                        sn: sn,
-                        name: name,
-                        brand: brand,
-                        model: model,
-                        category: category,
-                        status: status,
-                        holder: '-',
-                        receivedDate: currentDate,
-                        note: note
+                        sn, name, brand, model, category, status,
+                        holder: "", receivedDate, note
                     });
                 });
-                await saveData(`Add devices: ${name}`);
+                await saveData(`Add ${sns.length} new items`);
             } else {
-                // แก้ไข
-                inventory[index].sn = snInput;
-                inventory[index].name = name;
-                inventory[index].brand = brand;
-                inventory[index].model = model;
-                inventory[index].category = category;
-                inventory[index].status = status;
-                inventory[index].note = note;
-                await saveData(`Update device: ${name} (${snInput})`);
+                const i = parseInt(index);
+                inventory[i].sn = snRaw;
+                inventory[i].name = name;
+                inventory[i].brand = brand;
+                inventory[i].model = model;
+                inventory[i].category = category;
+                inventory[i].status = status;
+                inventory[i].receivedDate = receivedDate;
+                inventory[i].note = note;
+                await saveData(`Update item ${snRaw}`);
             }
 
             closeModal();
         }
 
         async function deleteItem(index) {
-            if (confirm(`คุณต้องการลบอุปกรณ์ S/N: ${inventory[index].sn} ใช่หรือไม่?`)) {
-                inventory.splice(index, 1);
-                await saveData("Delete device");
+            if (confirm("⚠️ คุณต้องการลบอุปกรณ์นี้ใช่หรือไม่? (รายการจะถูกย้ายไปที่ถังขยะ สามารถกู้คืนได้)")) {
+                const removed = inventory.splice(index, 1)[0];
+                removed.deletedAt = getThaiDateTime();
+                trashBin.push(removed);
+                localStorage.setItem('inventoryTrashBinV1', JSON.stringify(trashBin));
+                await saveData(`Delete item ${removed.sn} to trash`);
             }
         }
 
-        // Modal เบิก-คืน
+        // ระบบถังขยะและกู้คืน
+        function openTrashModal() {
+            renderTrashTable();
+            document.getElementById('trashModal').classList.remove('hidden');
+        }
+
+        function closeTrashModal() {
+            document.getElementById('trashModal').classList.add('hidden');
+        }
+
+        function renderTrashTable() {
+            const tbody = document.getElementById('trashTableBody');
+            tbody.innerHTML = '';
+            if (trashBin.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center p-6 text-slate-400">ไม่มีรายการในถังขยะ</td></tr>`;
+                return;
+            }
+
+            trashBin.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.className = "hover:bg-slate-50";
+                row.innerHTML = `
+                    <td class="p-3 font-mono font-bold text-slate-700">${item.sn || '-'}</td>
+                    <td class="p-3 font-medium">${item.name || '-'}</td>
+                    <td class="p-3 text-slate-600">${item.category || '-'}</td>
+                    <td class="p-3 text-xs text-slate-400">${item.deletedAt || '-'}</td>
+                    <td class="p-3 text-center">
+                        <div class="flex justify-center gap-2">
+                            <button onclick="restoreItem(${index})" class="px-2.5 py-1 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-xs font-semibold transition">♻️ กู้คืน</button>
+                            <button onclick="permanentDelete(${index})" class="px-2.5 py-1 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-xs font-semibold transition">🗑️ ลบถาวร</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        async function restoreItem(index) {
+            const restored = trashBin.splice(index, 1)[0];
+            delete restored.deletedAt;
+            inventory.push(restored);
+            localStorage.setItem('inventoryTrashBinV1', JSON.stringify(trashBin));
+            await saveData(`Restore item ${restored.sn} from trash`);
+            renderTrashTable();
+            alert(`✅ กู้คืนอุปกรณ์ ${restored.sn} เรียบร้อยแล้ว!`);
+        }
+
+        async function permanentDelete(index) {
+            if (confirm("⚠️ การลบถาวรจะไม่สามารถกู้คืนได้อีก คุณแน่ใจหรือไม่?")) {
+                trashBin.splice(index, 1);
+                localStorage.setItem('inventoryTrashBinV1', JSON.stringify(trashBin));
+                renderTrashTable();
+            }
+        }
+
         function openTransModal(index, mode) {
             const item = inventory[index];
             document.getElementById('transIndex').value = index;
             document.getElementById('transMode').value = mode;
-            document.getElementById('transName').value = '';
-            document.getElementById('transNote').value = '';
+            document.getElementById('transItemInfo').innerText = `อุปกรณ์: ${item.name} (S/N: ${item.sn})`;
 
             if (mode === 'borrow') {
-                document.getElementById('transTitle').innerText = "ทำรายการเบิกอุปกรณ์";
+                document.getElementById('transTitle').innerText = "🔄 ทำรายการเบิกอุปกรณ์";
                 document.getElementById('nameLabel').innerText = "ชื่อผู้เบิก / หน่วยงาน";
-                document.getElementById('transSubmitBtn').innerText = "ยืนยันการเบิก";
-                document.getElementById('transSubmitBtn').className = "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium";
+                document.getElementById('transName').value = "";
             } else {
-                document.getElementById('transTitle').innerText = "ทำรายการคืนอุปกรณ์";
-                document.getElementById('nameLabel').innerText = "ผู้ส่งคืน / หมายเหตุเพิ่มเติม";
-                document.getElementById('transSubmitBtn').innerText = "ยืนยันการคืน";
-                document.getElementById('transSubmitBtn').className = "px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium";
+                document.getElementById('transTitle').innerText = "📥 ทำรายการคืนอุปกรณ์";
+                document.getElementById('nameLabel').innerText = "ผู้ส่งคืน / ผู้ตรวจสอบรับเข้า";
+                document.getElementById('transName').value = item.holder || "";
             }
-
-            document.getElementById('transItemInfo').innerText = `อุปกรณ์: ${item.name} (S/N: ${item.sn})`;
+            document.getElementById('transNote').value = "";
             document.getElementById('transactionModal').classList.remove('hidden');
         }
 
@@ -730,28 +822,27 @@
 
         async function executeTransaction(e) {
             e.preventDefault();
-            const index = document.getElementById('transIndex').value;
+            const index = parseInt(document.getElementById('transIndex').value);
             const mode = document.getElementById('transMode').value;
             const name = document.getElementById('transName').value.trim();
             const note = document.getElementById('transNote').value.trim();
-            const currentDate = getThaiDateTime();
 
+            const item = inventory[index];
             if (mode === 'borrow') {
-                inventory[index].status = 'ถูกเบิก';
-                inventory[index].holder = name;
-                if(note) inventory[index].note = note;
-                await saveData(`Borrow device: ${inventory[index].sn} by ${name}`);
+                item.status = 'ถูกเบิก';
+                item.holder = name;
+                if (note) item.note = note;
+                await saveData(`Borrow item ${item.sn} by ${name}`);
             } else {
-                inventory[index].status = 'ในคลัง';
-                inventory[index].holder = '-';
-                if(note) inventory[index].note = note;
-                await saveData(`Return device: ${inventory[index].sn}`);
+                item.status = 'ในคลัง';
+                item.holder = '';
+                if (note) item.note = note;
+                await saveData(`Return item ${item.sn}`);
             }
 
             closeTransModal();
         }
 
-        // Excel Import & Export
         function openImportModal() {
             document.getElementById('excelFile').value = '';
             document.getElementById('importModal').classList.remove('hidden');
@@ -765,7 +856,7 @@
             const fileInput = document.getElementById('excelFile');
             const category = document.getElementById('importCategory').value;
             if (fileInput.files.length === 0) {
-                alert("กรุณาเลือกไฟล์ Excel ก่อนนำเข้า");
+                alert("⚠️ กรุณาเลือกไฟล์ Excel");
                 return;
             }
 
@@ -778,37 +869,35 @@
                     const workbook = XLSX.read(data, { type: 'array' });
                     const firstSheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[firstSheetName];
-                    const json = XLSX.utils.sheet_to_json(worksheet);
+                    const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-                    const currentDate = getThaiDateTime();
+                    if (json.length < 2) {
+                        alert("❌ ไฟล์ Excel ไม่มีข้อมูลหรือรูปแบบไม่ถูกต้อง");
+                        return;
+                    }
+
                     let count = 0;
+                    for (let i = 1; i < json.length; i++) {
+                        const row = json[i];
+                        if (row && row.length > 0) {
+                            const sn = row[0] ? String(row[0]).trim() : `AUTO-${Date.now()}-${i}`;
+                            const name = row[1] ? String(row[1]).trim() : 'ไม่ระบุชื่อ';
+                            const brand = row[2] ? String(row[2]).trim() : '';
+                            const model = row[3] ? String(row[3]).trim() : '';
+                            const receivedDate = row[4] ? String(row[4]).trim() : getThaiDateTime();
+                            const note = row[5] ? String(row[5]).trim() : '';
 
-                    json.forEach(row => {
-                        const sn = row['รหัส / S/N'] || row['S/N'] || row['SN'] || row['รหัส'] || '';
-                        const name = row['ชื่ออุปกรณ์'] || row['ชื่อ'] || '';
-                        const brand = row['ยี่ห้อ'] || '';
-                        const model = row['รุ่น'] || '';
-                        const note = row['หมายเหตุ'] || '';
-
-                        if (sn && name) {
                             inventory.push({
-                                sn: String(sn),
-                                name: String(name),
-                                brand: String(brand),
-                                model: String(model),
-                                category: category,
-                                status: 'ในคลัง',
-                                holder: '-',
-                                receivedDate: currentDate,
-                                note: String(note)
+                                sn, name, brand, model, category,
+                                status: 'ในคลัง', holder: '', receivedDate, note
                             });
                             count++;
                         }
-                    });
+                    }
 
-                    await saveData(`Imported ${count} items from Excel`);
+                    await saveData(`Import ${count} items from Excel`);
                     closeImportModal();
-                    alert(`✅ นำเข้าข้อมูลสำเร็จ ${count} รายการ`);
+                    alert(`✅ นำเข้าข้อมูลสำเร็จ ${count} รายการ!`);
                 } catch (err) {
                     console.error(err);
                     alert("❌ เกิดข้อผิดพลาดในการอ่านไฟล์ Excel");
@@ -819,30 +908,28 @@
 
         function exportToExcel() {
             if (inventory.length === 0) {
-                alert("ไม่มีข้อมูลสำหรับส่งออก");
+                alert("⚠️ ไม่มีข้อมูลสำหรับส่งออก");
                 return;
             }
-
-            const exportData = inventory.map((item, index) => ({
-                "ลำดับ": index + 1,
+            const exportData = inventory.map((item, idx) => ({
+                "ลำดับ": idx + 1,
                 "รหัส / S/N": item.sn,
                 "ชื่ออุปกรณ์": item.name,
-                "ยี่ห้อ": item.brand || '',
-                "รุ่น": item.model || '',
+                "ยี่ห้อ": item.brand,
+                "รุ่น": item.model,
                 "หมวดหมู่": item.category,
                 "สถานะ": item.status,
-                "ผู้ถือครองปัจจุบัน": item.holder,
+                "ผู้ถือครอง": item.holder,
                 "รับมาเมื่อ": item.receivedDate,
-                "หมายเหตุ": item.note || ''
+                "หมายเหตุ": item.note
             }));
 
             const worksheet = XLSX.utils.json_to_sheet(exportData);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Inventory");
-            XLSX.writeFile(workbook, "Inventory_Database.xlsx");
+            XLSX.writeFile(workbook, `Inventory_Report_${Date.now()}.xlsx`);
         }
 
-        // User Management Modal
         function openUserModal() {
             renderUserTable();
             document.getElementById('userModal').classList.remove('hidden');
@@ -855,15 +942,16 @@
         function renderUserTable() {
             const tbody = document.getElementById('userTableBody');
             tbody.innerHTML = '';
-            users.forEach((u, index) => {
-                let tr = document.createElement('tr');
-                let deleteBtn = u.username !== 'admin' ? `<button onclick="deleteUser(${index})" class="text-rose-600 hover:underline">ลบ</button>` : `<span class="text-slate-300">-</span>`;
-                tr.innerHTML = `
-                    <td class="p-3 font-medium">${u.username}</td>
+            users.forEach((u, i) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="p-3 font-semibold">${u.username}</td>
                     <td class="p-3 text-blue-600">${u.role}</td>
-                    <td class="p-3 text-center">${deleteBtn}</td>
+                    <td class="p-3 text-center">
+                        ${u.username !== 'admin' ? `<button onclick="deleteUser(${i})" class="text-rose-500 hover:underline text-xs">ลบ</button>` : '<span class="text-slate-300 text-xs">ระบบหลัก</span>'}
+                    </td>
                 `;
-                tbody.appendChild(tr);
+                tbody.appendChild(row);
             });
         }
 
@@ -873,7 +961,7 @@
             const password = document.getElementById('newPassword').value.trim();
             const role = document.getElementById('newRole').value;
 
-            if (users.some(u => u.username === username)) {
+            if (users.some(x => x.username === username)) {
                 alert("❌ มีชื่อผู้ใช้นี้อยู่ในระบบแล้ว");
                 return;
             }
@@ -883,26 +971,25 @@
             document.getElementById('newUsername').value = '';
             document.getElementById('newPassword').value = '';
             renderUserTable();
-            alert("✅ เพิ่มผู้ใช้งานสำเร็จ");
+            alert("✅ เพิ่มผู้ใช้งานสำเร็จ!");
         }
 
         function deleteUser(index) {
-            if (confirm(`ต้องการลบผู้ใช้ ${users[index].username} ใช่หรือไม่?`)) {
+            if (confirm("ต้องการลบผู้ใช้นี้ใช่หรือไม่?")) {
                 users.splice(index, 1);
                 localStorage.setItem('inventoryUsersV1', JSON.stringify(users));
                 renderUserTable();
             }
         }
 
-        // QR Code Modal
-        function showQrCode(sn, name) {
+        function openQrModal(sn, name) {
             document.getElementById('qrItemName').innerText = `${name} (S/N: ${sn})`;
-            const container = document.getElementById('qrcode');
-            container.innerHTML = '';
-            new QRCode(container, {
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, {
                 text: sn,
-                width: 128,
-                height: 128
+                width: 150,
+                height: 150
             });
             document.getElementById('qrModal').classList.remove('hidden');
         }
