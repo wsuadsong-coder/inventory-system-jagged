@@ -7,9 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-    <!-- เพิ่ม Chart.js สำหรับทำกราฟ -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>body { font-family: 'Sarabun', sans-serif; }</style>
 </head>
@@ -87,7 +85,6 @@
 
         <!-- Dashboard Summary & Charts -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-            <!-- คอลัมน์ซ้าย: การ์ดตัวเลข 3 ใบ -->
             <div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 content-start">
                 <div onclick="filterByCard('all')" class="bg-white shadow-sm rounded-2xl p-5 border-l-4 border-slate-700 flex flex-col justify-center cursor-pointer hover:bg-slate-50 transition h-32">
                     <span class="text-sm font-semibold text-slate-500 mb-1">รายการอุปกรณ์ทั้งหมด</span>
@@ -112,7 +109,6 @@
                 </div>
             </div>
             
-            <!-- คอลัมน์ขวา: กราฟวงกลม -->
             <div class="bg-white shadow-sm rounded-2xl p-5 border border-slate-100 flex flex-col items-center">
                 <h3 class="text-sm font-bold text-slate-700 mb-2 w-full text-center">สัดส่วนสถานะอุปกรณ์</h3>
                 <div class="w-full max-w-[200px] aspect-square relative">
@@ -443,7 +439,6 @@
         </div>
     </div>
 
-    <!-- ==================== JAVASCRIPT ==================== -->
     <script>
         let inventory = [];
         let trashBin = JSON.parse(localStorage.getItem('inventoryTrashBinV1')) || [];
@@ -802,6 +797,9 @@
             document.getElementById('transactionModal').classList.add('hidden');
         }
 
+        // ==========================================
+        // ฟังก์ชันเบิก-คืน ที่รวมยอดกลับเข้าที่เดิม
+        // ==========================================
         async function executeTransaction(event) {
             event.preventDefault();
             const index = document.getElementById('transIndex').value;
@@ -822,9 +820,12 @@
                 if (!item.originalQty) item.originalQty = currentStock;
 
                 if (borrowQty === currentStock) {
+                    // เบิกหมดทั้งแถว
                     item.status = 'ถูกเบิก';
                     item.holder = name;
+                    if (note) item.note = note;
                 } else {
+                    // เบิกแค่บางส่วน (แยกแถวใหม่)
                     const remainingStock = currentStock - borrowQty;
                     item.qty = remainingStock;
                     const borrowedItem = {
@@ -834,12 +835,35 @@
                     };
                     inventory.push(borrowedItem);
                 }
-                if (note && borrowQty === currentStock) item.note = note;
             } else {
-                item.status = 'ในคลัง';
-                item.holder = '-';
-                if (item.originalQty) item.qty = item.originalQty;
-                if (note) item.note = 'คืนจาก: ' + name + (note ? ' (' + note + ')' : '');
+                // โหมดคืนอุปกรณ์ (ปรับปรุงให้รวมยอดกลับเข้าที่เดิม)
+                const noteText = 'คืนจาก: ' + name + (note ? ' (' + note + ')' : '');
+
+                // ตรวจสอบว่าเป็นรายการที่ถูกแยกแถวออกไปตอนเบิกหรือไม่
+                if (item.sn.endsWith(' (เบิก)')) {
+                    const originalSn = item.sn.replace(' (เบิก)', '');
+                    // วิ่งหาอุปกรณ์ตัวแม่ในคลัง
+                    const originalItem = inventory.find(x => x.sn === originalSn && x.name === item.name);
+                    
+                    if (originalItem) {
+                        // ถ้าเจอตัวแม่ ให้เอายอดจำนวนกลับไปบวกคืน
+                        originalItem.qty += item.qty;
+                        if (note) originalItem.note = noteText;
+                        // ลบแถวที่เบิกนี้ออกจากตาราง
+                        inventory.splice(index, 1);
+                    } else {
+                        // กรณีที่อุปกรณ์ตัวแม่ถูกลบไปแล้ว ให้เปลี่ยนชื่อกลับและตั้งสถานะเป็นในคลัง
+                        item.sn = originalSn;
+                        item.status = 'ในคลัง';
+                        item.holder = '-';
+                        if (note) item.note = noteText;
+                    }
+                } else {
+                    // กรณีเบิกไปทั้งหมดของแถวนั้น (ไม่ได้แยกแถว) คืนค่าสถานะปกติ
+                    item.status = 'ในคลัง';
+                    item.holder = '-';
+                    if (note) item.note = noteText;
+                }
             }
 
             closeTransModal();
@@ -1295,7 +1319,7 @@
                             window.print();
                         }, 500);
                     };
-                <` + `/script>
+                <\/script>
             </body>
             </html>
             `;
