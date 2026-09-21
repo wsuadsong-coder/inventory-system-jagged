@@ -7,7 +7,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <!-- เพิ่ม Chart.js สำหรับทำกราฟ -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>body { font-family: 'Sarabun', sans-serif; }</style>
 </head>
@@ -34,6 +36,11 @@
                 </div>
                 <button type="submit" class="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-semibold transition shadow-sm">เข้าสู่ระบบ</button>
             </form>
+            <div class="mt-6 text-xs text-slate-400 text-center bg-slate-50 p-3 rounded-xl border">
+                บัญชีทดสอบ:<br>
+                👑 Admin: <span class="font-mono font-bold text-slate-600">admin / 1234</span><br>
+                👤 Staff: <span class="font-mono font-bold text-slate-600">staff / 1234</span>
+            </div>
         </div>
     </div>
 
@@ -58,7 +65,11 @@
                     <button onclick="openUserModal()" class="bg-slate-700 hover:bg-slate-800 text-white px-3 py-2 rounded-xl text-sm font-medium transition shadow-sm">👥 ผู้ใช้</button>
                 </div>
                 <div class="flex items-center gap-2 pl-2 border-l border-slate-200 ml-1">
-                    <button onclick="handleLogout()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-2 rounded-xl text-sm font-medium transition" title="ออกจากระบบ">🚪 ออก</button>
+                    <div class="text-right hidden sm:block">
+                        <div id="currentUserName" class="text-xs font-bold text-slate-700">-</div>
+                        <div id="currentUserRole" class="text-[10px] text-blue-600 font-semibold">-</div>
+                    </div>
+                    <button onclick="handleLogout()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-2 rounded-xl text-sm font-medium transition ml-2" title="ออกจากระบบ">🚪 ออก</button>
                 </div>
             </div>
         </header>
@@ -66,7 +77,7 @@
         <!-- GitHub Status Banner -->
         <div id="syncStatusBanner" class="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-2xl mb-6 text-sm flex justify-between items-center hidden">
             <span id="syncStatusText">⚠️ ยังไม่ได้ตั้งค่าเชื่อมต่อ GitHub กรุณาตั้งค่าเพื่อซิงค์ฐานข้อมูล</span>
-            <button onclick="loadDataFromGitHub()" class="px-3 py-1 bg-amber-600 text-white rounded-lg text-xs font-medium">🔄 ลองเชื่อมต่อใหม่</button>
+            <button onclick="loadDataFromGitHub()" class="px-3 py-1 bg-amber-600 text-white rounded-lg text-xs font-medium hover:bg-amber-700">🔄 ลองเชื่อมต่อใหม่</button>
         </div>
 
         <!-- แจ้งเตือนของเหลือน้อยกว่า 50% -->
@@ -101,7 +112,7 @@
                 </div>
             </div>
             
-            <!-- คอลัมน์ขวา: กราฟวงกลม สถานะ -->
+            <!-- คอลัมน์ขวา: กราฟวงกลม -->
             <div class="bg-white shadow-sm rounded-2xl p-5 border border-slate-100 flex flex-col items-center">
                 <h3 class="text-sm font-bold text-slate-700 mb-2 w-full text-center">สัดส่วนสถานะอุปกรณ์</h3>
                 <div class="w-full max-w-[200px] aspect-square relative">
@@ -349,7 +360,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">เลือกไฟล์ Excel (.xlsx, .xls)</label>
-                    <input type="file" id="excelFile" accept=".xlsx, .xls" class="w-full px-3 py-2 border rounded-xl text-sm bg-slate-50">
+                    <input type="file" id="excelFile" accept=".xlsx, .xls" class="w-full px-3 py-2 border rounded-xl text-sm bg-slate-50 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-50 file:text-amber-700">
                 </div>
             </div>
             <div class="mt-6 flex justify-end gap-2">
@@ -434,7 +445,6 @@
 
     <!-- ==================== JAVASCRIPT ==================== -->
     <script>
-        // --- 1. ตัวแปรระบบ ---
         let inventory = [];
         let trashBin = JSON.parse(localStorage.getItem('inventoryTrashBinV1')) || [];
         let fileSha = "";
@@ -457,11 +467,12 @@
             "อื่นๆ": ["อื่นๆ"]
         };
 
-        // --- 2. เริ่มต้นระบบ ---
         window.onload = function() {
             checkAuthStatus();
             setupCategoryFilterListener();
-            Chart.defaults.font.family = "'Sarabun', sans-serif";
+            if (typeof Chart !== 'undefined') {
+                Chart.defaults.font.family = "'Sarabun', sans-serif";
+            }
         };
 
         function setupCategoryFilterListener() {
@@ -474,7 +485,6 @@
             const mainCat = document.getElementById('categoryFilter').value;
             const subFilter = document.getElementById('subCategoryFilter');
             subFilter.innerHTML = '<option value="">ทุกหมวดหมู่ย่อย</option>';
-            
             if (mainCat && subCategoryMapping[mainCat]) {
                 subCategoryMapping[mainCat].forEach(sub => {
                     subFilter.innerHTML += `<option value="${sub}">${sub}</option>`;
@@ -490,7 +500,6 @@
             }
         }
 
-        // --- 3. ระบบ ล็อกอิน / สิทธิ์ผู้ใช้งาน ---
         function checkAuthStatus() {
             const loginScreen = document.getElementById('loginScreen');
             const mainApp = document.getElementById('mainApp');
@@ -499,8 +508,10 @@
                 loginScreen.classList.add('hidden');
                 mainApp.classList.remove('hidden');
                 
+                document.getElementById('currentUserName').innerText = currentUser.username;
+                document.getElementById('currentUserRole').innerText = currentUser.role === 'Admin' ? '👑 ผู้ดูแลระบบ' : '👤 เจ้าหน้าที่';
+                
                 const adminButtons = document.querySelectorAll('.admin-only');
-                const adminActionButtons = document.getElementById('adminActionButtons');
                 if (currentUser.role !== 'Admin') {
                     adminButtons.forEach(el => el.style.display = 'none');
                 } else {
@@ -509,7 +520,7 @@
 
                 if (!ghConfig.token || !ghConfig.owner || !ghConfig.repo) {
                     document.getElementById('syncStatusBanner').classList.remove('hidden');
-                    renderTable(); 
+                    renderTable();
                 } else {
                     loadDataFromGitHub();
                 }
@@ -532,14 +543,13 @@
                 alert("❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
             }
         }
-        
+
         function handleLogout() {
             currentUser = null;
             localStorage.removeItem('inventoryCurrentUser');
             checkAuthStatus();
         }
 
-        // --- 4. ระบบฐานข้อมูล GitHub ---
         async function loadDataFromGitHub() {
             if (!ghConfig.token || !ghConfig.owner || !ghConfig.repo) return;
             const url = `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${ghConfig.path}`;
@@ -553,15 +563,11 @@
                     document.getElementById('syncStatusBanner').classList.add('hidden');
                     renderTable();
                 } else if (res.status === 404) {
-                    inventory = [];
-                    await saveDataToGitHub("Initial database file");
-                    document.getElementById('syncStatusBanner').classList.add('hidden');
+                    inventory = []; 
+                    await saveDataToGitHub("Initial DB");
                     renderTable();
                 }
-            } catch (err) { 
-                console.error(err); 
-                document.getElementById('syncStatusBanner').classList.remove('hidden');
-            }
+            } catch (err) { console.error(err); }
         }
 
         async function saveDataToGitHub(commitMessage = "Update database") {
@@ -614,7 +620,6 @@
             checkAuthStatus();
         }
 
-        // --- 5. จัดการอุปกรณ์ (เพิ่ม/แก้ไข/ลบ) ---
         function openAddModal() {
             document.getElementById('modalTitle').innerText = "เพิ่มอุปกรณ์ใหม่";
             document.getElementById('itemIndex').value = "";
@@ -717,7 +722,6 @@
             }
         }
 
-        // --- 6. ถังขยะ (Trash) ---
         function openTrashModal() {
             const tbody = document.getElementById('trashTableBody');
             tbody.innerHTML = '';
@@ -764,7 +768,6 @@
             openTrashModal();
         }
 
-        // --- 7. การเบิก-คืน (Transactions) ---
         function openTransactionModal(index, mode) {
             const item = inventory[index];
             document.getElementById('transIndex').value = index;
@@ -845,7 +848,6 @@
             }
         }
 
-        // --- 8. เรนเดอร์ตารางและกราฟ ---
         function renderTable() {
             const search = document.getElementById('searchInput') ? document.getElementById('searchInput').value.toLowerCase() : '';
             const catFilter = document.getElementById('categoryFilter') ? document.getElementById('categoryFilter').value : '';
@@ -930,6 +932,8 @@
         function updateStatusChart(stock, borrow, repair) {
             const ctx = document.getElementById('statusChart');
             if (!ctx) return;
+            if (typeof Chart === 'undefined') return;
+
             const dataValues = [stock, borrow, repair];
             if (statusChartInstance) {
                 statusChartInstance.data.datasets[0].data = dataValues;
@@ -949,6 +953,8 @@
         function updateCategoryChart(catCounts) {
             const ctx = document.getElementById('categoryChart');
             if (!ctx) return;
+            if (typeof Chart === 'undefined') return;
+
             const labels = Object.keys(catCounts);
             const dataValues = Object.values(catCounts);
             const colors = ['#6366f1', '#f59e0b', '#ec4899', '#14b8a6', '#8b5cf6', '#64748b'];
@@ -974,7 +980,6 @@
             renderTable();
         }
 
-        // --- 9. QR Code ---
         function showQrCode(sn, name) {
             document.getElementById('qrItemName').innerText = `${name} (${sn})`;
             const container = document.getElementById('qrcode');
@@ -987,7 +992,6 @@
             document.getElementById('qrModal').classList.add('hidden');
         }
 
-        // --- 10. จัดการสิทธิ์ผู้ใช้งาน ---
         function openUserModal() {
             renderUserTable();
             document.getElementById('userModal').classList.remove('hidden');
@@ -1038,7 +1042,6 @@
             renderUserTable();
         }
 
-        // --- 11. นำเข้า / ส่งออก Excel ---
         function openImportModal() {
             document.getElementById('excelFile').value = '';
             document.getElementById('importModal').classList.remove('hidden');
@@ -1113,7 +1116,6 @@
             XLSX.writeFile(workbook, "Inventory_Database.xlsx");
         }
 
-        // --- 12. ออกรายงาน (Print Report) แบบแยกหมวดหมู่ ---
         function openReportModal() { document.getElementById('reportModal').classList.remove('hidden'); }
         function closeReportModal() { document.getElementById('reportModal').classList.add('hidden'); }
         
@@ -1293,7 +1295,7 @@
                             window.print();
                         }, 500);
                     };
-                <\/script>
+                <` + `/script>
             </body>
             </html>
             `;
