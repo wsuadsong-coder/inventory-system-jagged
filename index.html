@@ -364,7 +364,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">เลือกไฟล์ Excel (.xlsx, .xls)</label>
-                    <input type="file" id="excelFile" accept=".xlsx, .xls" class="w-full px-3 py-2 border rounded-xl text-sm bg-slate-50">
+                    <input type="file" id="excelFile" accept=".xlsx, .xls" class="w-full px-3 py-2 border rounded-xl text-sm bg-slate-50 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-50 file:text-amber-700">
                 </div>
             </div>
             <div class="mt-6 flex justify-end gap-2">
@@ -783,21 +783,23 @@
             const qtyInput = document.getElementById('transQty');
             const qtyWrapper = document.getElementById('borrowQtyWrapper');
             
+            // เปิดให้แก้ไขจำนวนเสมอ ทั้งเบิก และ คืน
+            qtyWrapper.style.display = 'block';
+            qtyInput.max = item.qty || 1;
+            qtyInput.value = 1;
+
             if (mode === 'borrow') {
                 document.getElementById('transTitle').innerText = "🔄 ทำรายการเบิกอุปกรณ์";
                 document.getElementById('nameLabel').innerText = "ชื่อผู้เบิก / หน่วยงาน";
                 document.getElementById('transSubmitBtn').innerText = "ยืนยันการเบิก";
                 document.getElementById('transSubmitBtn').className = "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium";
-                qtyWrapper.style.display = 'block';
-                qtyInput.max = item.qty || 1;
-                qtyInput.value = 1;
-                document.getElementById('maxQtyHint').innerText = `(สูงสุด ${item.qty || 1} ชิ้น)`;
+                document.getElementById('maxQtyHint').innerText = `(เบิกได้สูงสุด ${item.qty || 1} ชิ้น)`;
             } else {
                 document.getElementById('transTitle').innerText = "📥 ทำรายการคืนอุปกรณ์";
                 document.getElementById('nameLabel').innerText = "ผู้ส่งคืน / หมายเหตุ";
                 document.getElementById('transSubmitBtn').innerText = "ยืนยันการคืนเข้าคลัง";
                 document.getElementById('transSubmitBtn').className = "px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium";
-                qtyWrapper.style.display = 'none';
+                document.getElementById('maxQtyHint').innerText = `(คืนได้สูงสุด ${item.qty || 1} ชิ้น)`;
             }
             document.getElementById('transactionModal').classList.remove('hidden');
         }
@@ -814,52 +816,72 @@
             const note = document.getElementById('transNote').value.trim();
             const item = inventory[index];
 
+            const transQty = parseInt(document.getElementById('transQty').value) || 1;
+            const currentQty = item.qty || 1;
+
+            if (transQty > currentQty) {
+                alert(`❌ จำนวนที่ระบุเกินกว่าจำนวนที่มีอยู่`);
+                return;
+            }
+
             if (mode === 'borrow') {
-                const borrowQty = parseInt(document.getElementById('transQty').value) || 1;
-                const currentStock = item.qty || 1;
+                if (!item.originalQty) item.originalQty = currentQty;
 
-                if (borrowQty > currentStock) {
-                    alert(`❌ เบิกเกินจำนวนคงเหลือ`);
-                    return;
-                }
-
-                if (!item.originalQty) item.originalQty = currentStock;
-
-                if (borrowQty === currentStock) {
+                if (transQty === currentQty) {
                     item.status = 'ถูกเบิก';
                     item.holder = name;
                     if (note) item.note = note;
                 } else {
-                    const remainingStock = currentStock - borrowQty;
+                    const remainingStock = currentQty - transQty;
                     item.qty = remainingStock;
                     const borrowedItem = {
                         sn: item.sn + ' (เบิก)', name: item.name, category: item.category, subCategory: item.subCategory, 
-                        brand: item.brand, model: item.model, qty: borrowQty, originalQty: borrowQty, status: 'ถูกเบิก', 
+                        brand: item.brand, model: item.model, qty: transQty, originalQty: item.originalQty, status: 'ถูกเบิก', 
                         holder: name, receivedDate: item.receivedDate, note: note ? note : item.note
                     };
                     inventory.push(borrowedItem);
                 }
             } else {
+                // คืนอุปกรณ์ (รองรับการคืนบางส่วน และ คืนทั้งหมด)
                 const noteText = 'คืนจาก: ' + name + (note ? ' (' + note + ')' : '');
+                
+                let originalSn = item.sn;
+                let isSplitBorrow = false;
 
                 if (item.sn.endsWith(' (เบิก)')) {
-                    const originalSn = item.sn.replace(' (เบิก)', '');
-                    const originalItem = inventory.find(x => x.sn === originalSn && x.name === item.name);
-                    
-                    if (originalItem) {
-                        originalItem.qty += item.qty;
+                    originalSn = item.sn.replace(' (เบิก)', '');
+                    isSplitBorrow = true;
+                }
+
+                const originalItem = inventory.find(x => x.sn === originalSn && x.name === item.name && x.status === 'ในคลัง');
+
+                if (transQty === currentQty) {
+                    // คืนทั้งหมดของรายการนี้
+                    if (isSplitBorrow && originalItem) {
+                        originalItem.qty += transQty;
                         if (note) originalItem.note = noteText;
                         inventory.splice(index, 1);
                     } else {
-                        item.sn = originalSn;
+                        item.sn = originalSn; 
                         item.status = 'ในคลัง';
                         item.holder = '-';
                         if (note) item.note = noteText;
                     }
                 } else {
-                    item.status = 'ในคลัง';
-                    item.holder = '-';
-                    if (note) item.note = noteText;
+                    // คืนแค่บางส่วน (Partial Return)
+                    item.qty -= transQty; // ลดจำนวนเบิกลง
+                    
+                    if (isSplitBorrow && originalItem) {
+                        originalItem.qty += transQty;
+                        if (note) originalItem.note = noteText;
+                    } else {
+                        const returnedItem = {
+                            sn: originalSn, name: item.name, category: item.category, subCategory: item.subCategory, 
+                            brand: item.brand, model: item.model, qty: transQty, originalQty: item.originalQty, status: 'ในคลัง', 
+                            holder: '-', receivedDate: item.receivedDate, note: noteText
+                        };
+                        inventory.push(returnedItem);
+                    }
                 }
             }
 
@@ -1128,7 +1150,6 @@
 
             const workbook = XLSX.utils.book_new();
 
-            // 1. สร้าง Sheet แรก "รวมทั้งหมด"
             const allExportData = inventory.map((item, idx) => ({
                 'ลำดับ': idx + 1, 'รหัส / S/N': item.sn, 'ชื่ออุปกรณ์': item.name, 'หมวดหมู่หลัก': item.category, 
                 'หมวดหมู่ย่อย': item.subCategory, 'ยี่ห้อ': item.brand, 'รุ่น': item.model, 'จำนวน': item.qty || 1, 
@@ -1137,7 +1158,6 @@
             const wsAll = XLSX.utils.json_to_sheet(allExportData);
             XLSX.utils.book_append_sheet(workbook, wsAll, "รวมทั้งหมด");
 
-            // 2. จัดกลุ่มข้อมูลตามหมวดหมู่
             const groupedByCategory = {};
             inventory.forEach(item => {
                 const cat = item.category || 'อื่นๆ';
@@ -1147,7 +1167,6 @@
                 groupedByCategory[cat].push(item);
             });
 
-            // 3. สร้าง Sheet แยกสำหรับแต่ละหมวดหมู่
             for (const cat in groupedByCategory) {
                 const catExportData = groupedByCategory[cat].map((item, idx) => ({
                     'ลำดับ': idx + 1, 'รหัส / S/N': item.sn, 'ชื่ออุปกรณ์': item.name, 'หมวดหมู่ย่อย': item.subCategory, 
@@ -1387,7 +1406,7 @@
                             window.print();
                         }, 500);
                     };
-                <\/script>
+                <` + `/script>
             </body>
             </html>
             `;
