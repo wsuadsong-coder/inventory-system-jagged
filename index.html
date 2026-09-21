@@ -178,7 +178,7 @@
 
     <!-- ==================== MODALS ==================== -->
     
-    <!-- Modal ออกรายงาน (Print Report) อัปเดตแยกหมวดหมู่ -->
+    <!-- Modal ออกรายงาน (Print Report) -->
     <div id="reportModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl">
             <div class="flex justify-between items-center mb-4">
@@ -193,15 +193,13 @@
                         <option value="ประจำวัน">รายงานสรุปประจำวัน</option>
                         <option value="ประจำเดือน">รายงานสรุปประจำเดือน</option>
                         <option value="ประจำปี">รายงานสรุปประจำปี</option>
-                        <option value="แยกหมวดหมู่">รายงานแยกตามหมวดหมู่</option> <!-- อัปเดตตัวเลือกนี้ -->
+                        <option value="แยกหมวดหมู่">รายงานแยกตามหมวดหมู่</option>
                     </select>
                 </div>
 
-                <!-- ส่วนเลือกหมวดหมู่ (ซ่อนไว้ก่อน จะแสดงเมื่อเลือก "แยกหมวดหมู่") -->
                 <div id="categorySelectWrapper" class="hidden">
                     <label class="block text-sm font-medium text-slate-700 mb-1">เลือกหมวดหมู่ที่ต้องการ</label>
                     <select id="reportCategorySelection" class="w-full px-3 py-2 border rounded-xl text-sm bg-white">
-                        <!-- รายชื่อหมวดหมู่จะถูกใส่ด้วย Javascript อัตโนมัติ -->
                     </select>
                 </div>
 
@@ -366,7 +364,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">เลือกไฟล์ Excel (.xlsx, .xls)</label>
-                    <input type="file" id="excelFile" accept=".xlsx, .xls" class="w-full px-3 py-2 border rounded-xl text-sm bg-slate-50 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-50 file:text-amber-700">
+                    <input type="file" id="excelFile" accept=".xlsx, .xls" class="w-full px-3 py-2 border rounded-xl text-sm bg-slate-50">
                 </div>
             </div>
             <div class="mt-6 flex justify-end gap-2">
@@ -808,7 +806,6 @@
             document.getElementById('transactionModal').classList.add('hidden');
         }
 
-        // ฟังก์ชันเบิก-คืน ที่รวมยอดกลับเข้าที่เดิม
         async function executeTransaction(event) {
             event.preventDefault();
             const index = document.getElementById('transIndex').value;
@@ -1122,20 +1119,20 @@
             reader.readAsArrayBuffer(file);
         }
 
+        // ฟังก์ชัน Export ไปยัง Excel แบบแยก Sheet และมี Sheet รวม
         function exportToExcel() {
             if (inventory.length === 0) {
                 alert("⚠️ ไม่มีข้อมูลสำหรับส่งออก");
                 return;
             }
 
-            // สร้างสมุดงาน (Workbook) ใหม่
             const workbook = XLSX.utils.book_new();
 
-            // 1. สร้าง Sheet แรก "รวมทั้งหมด" (ภาพรวม)
+            // 1. สร้าง Sheet แรก "รวมทั้งหมด"
             const allExportData = inventory.map((item, idx) => ({
                 'ลำดับ': idx + 1, 'รหัส / S/N': item.sn, 'ชื่ออุปกรณ์': item.name, 'หมวดหมู่หลัก': item.category, 
                 'หมวดหมู่ย่อย': item.subCategory, 'ยี่ห้อ': item.brand, 'รุ่น': item.model, 'จำนวน': item.qty || 1, 
-                'สถานะ': item.status, 'ผู้ถือครองปัจจุบัน': item.holder, 'รับมาเมื่อ': item.receivedDate, 'หมายเหตุ': item.note
+                'สถานะ': item.status, 'ผู้ถือครอง': item.holder, 'รับมาเมื่อ': item.receivedDate, 'หมายเหตุ': item.note
             }));
             const wsAll = XLSX.utils.json_to_sheet(allExportData);
             XLSX.utils.book_append_sheet(workbook, wsAll, "รวมทั้งหมด");
@@ -1155,24 +1152,18 @@
                 const catExportData = groupedByCategory[cat].map((item, idx) => ({
                     'ลำดับ': idx + 1, 'รหัส / S/N': item.sn, 'ชื่ออุปกรณ์': item.name, 'หมวดหมู่ย่อย': item.subCategory, 
                     'ยี่ห้อ': item.brand, 'รุ่น': item.model, 'จำนวน': item.qty || 1, 
-                    'สถานะ': item.status, 'ผู้ถือครองปัจจุบัน': item.holder, 'รับมาเมื่อ': item.receivedDate, 'หมายเหตุ': item.note
+                    'สถานะ': item.status, 'ผู้ถือครอง': item.holder, 'รับมาเมื่อ': item.receivedDate, 'หมายเหตุ': item.note
                 }));
                 const wsCat = XLSX.utils.json_to_sheet(catExportData);
                 
-                // ตั้งชื่อชีทตามหมวดหมู่ เช่น "โทรศัพท์", "กล้อง" (ตัดตัวอักษรไม่เกิน 31 ตัวตามข้อจำกัดของ Excel)
                 const safeSheetName = cat.substring(0, 31);
                 XLSX.utils.book_append_sheet(workbook, wsCat, safeSheetName);
             }
 
-            // บันทึกและโหลดไฟล์
             XLSX.writeFile(workbook, "Inventory_Database.xlsx");
         }
 
-        // ==========================================
-        // ส่วนจัดการการพิมพ์รายงานแยกหมวดหมู่
-        // ==========================================
         function openReportModal() {
-            // ดึงรายชื่อหมวดหมู่ทั้งหมดที่มีมาใส่ใน Dropdown
             const catSelect = document.getElementById('reportCategorySelection');
             catSelect.innerHTML = '<option value="all">-- ทุกหมวดหมู่ --</option>';
             const uniqueCats = [...new Set(inventory.map(item => item.category || 'อื่นๆ'))].sort();
@@ -1396,7 +1387,7 @@
                             window.print();
                         }, 500);
                     };
-                <` + `/script>
+                <\/script>
             </body>
             </html>
             `;
