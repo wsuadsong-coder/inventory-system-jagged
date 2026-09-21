@@ -178,7 +178,7 @@
 
     <!-- ==================== MODALS ==================== -->
     
-    <!-- Modal ออกรายงาน (Print Report) -->
+    <!-- Modal ออกรายงาน (Print Report) อัปเดตใหม่ -->
     <div id="reportModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl">
             <div class="flex justify-between items-center mb-4">
@@ -188,14 +188,24 @@
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">เลือกประเภทรายงาน</label>
-                    <select id="reportType" class="w-full px-3 py-2 border rounded-xl text-sm bg-white">
+                    <select id="reportType" onchange="toggleEquipmentSelect()" class="w-full px-3 py-2 border rounded-xl text-sm bg-white">
+                        <option value="ภาพรวม">รายงานภาพรวมทั้งหมด (สถานะปัจจุบัน)</option>
                         <option value="ประจำวัน">รายงานสรุปประจำวัน</option>
                         <option value="ประจำเดือน">รายงานสรุปประจำเดือน</option>
                         <option value="ประจำปี">รายงานสรุปประจำปี</option>
-                        <option value="ภาพรวม">รายงานภาพรวมทั้งหมด (สถานะปัจจุบัน)</option>
+                        <option value="รายอุปกรณ์">รายงานรายอุปกรณ์ (เจาะจงชื่ออุปกรณ์)</option> <!-- เพิ่มตัวเลือกใหม่ -->
                     </select>
                 </div>
-                <p class="text-xs text-slate-500">รายงานจะสรุปสถานะอุปกรณ์ปัจจุบันแบบแยกหมวดหมู่ พร้อมช่องสำหรับเซ็นชื่อท้ายกระดาษ</p>
+
+                <!-- ส่วนเลือกอุปกรณ์ (ซ่อนไว้ก่อน จะแสดงเมื่อเลือก "รายอุปกรณ์") -->
+                <div id="equipmentSelectWrapper" class="hidden">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">เลือกชื่ออุปกรณ์ที่ต้องการ</label>
+                    <select id="reportEquipment" class="w-full px-3 py-2 border rounded-xl text-sm bg-white">
+                        <!-- รายชื่ออุปกรณ์จะถูกใส่ด้วย Javascript อัตโนมัติ -->
+                    </select>
+                </div>
+
+                <p class="text-xs text-slate-500 mt-2">รายงานจะสรุปสถานะปัจจุบัน พร้อมช่องสำหรับเซ็นชื่อท้ายกระดาษ</p>
             </div>
             <div class="mt-6 flex justify-end gap-2">
                 <button type="button" onclick="closeReportModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-medium">ยกเลิก</button>
@@ -439,6 +449,7 @@
         </div>
     </div>
 
+    <!-- ==================== JAVASCRIPT ==================== -->
     <script>
         let inventory = [];
         let trashBin = JSON.parse(localStorage.getItem('inventoryTrashBinV1')) || [];
@@ -797,9 +808,6 @@
             document.getElementById('transactionModal').classList.add('hidden');
         }
 
-        // ==========================================
-        // ฟังก์ชันเบิก-คืน ที่รวมยอดกลับเข้าที่เดิม
-        // ==========================================
         async function executeTransaction(event) {
             event.preventDefault();
             const index = document.getElementById('transIndex').value;
@@ -820,12 +828,10 @@
                 if (!item.originalQty) item.originalQty = currentStock;
 
                 if (borrowQty === currentStock) {
-                    // เบิกหมดทั้งแถว
                     item.status = 'ถูกเบิก';
                     item.holder = name;
                     if (note) item.note = note;
                 } else {
-                    // เบิกแค่บางส่วน (แยกแถวใหม่)
                     const remainingStock = currentStock - borrowQty;
                     item.qty = remainingStock;
                     const borrowedItem = {
@@ -836,30 +842,23 @@
                     inventory.push(borrowedItem);
                 }
             } else {
-                // โหมดคืนอุปกรณ์ (ปรับปรุงให้รวมยอดกลับเข้าที่เดิม)
                 const noteText = 'คืนจาก: ' + name + (note ? ' (' + note + ')' : '');
 
-                // ตรวจสอบว่าเป็นรายการที่ถูกแยกแถวออกไปตอนเบิกหรือไม่
                 if (item.sn.endsWith(' (เบิก)')) {
                     const originalSn = item.sn.replace(' (เบิก)', '');
-                    // วิ่งหาอุปกรณ์ตัวแม่ในคลัง
                     const originalItem = inventory.find(x => x.sn === originalSn && x.name === item.name);
                     
                     if (originalItem) {
-                        // ถ้าเจอตัวแม่ ให้เอายอดจำนวนกลับไปบวกคืน
                         originalItem.qty += item.qty;
                         if (note) originalItem.note = noteText;
-                        // ลบแถวที่เบิกนี้ออกจากตาราง
                         inventory.splice(index, 1);
                     } else {
-                        // กรณีที่อุปกรณ์ตัวแม่ถูกลบไปแล้ว ให้เปลี่ยนชื่อกลับและตั้งสถานะเป็นในคลัง
                         item.sn = originalSn;
                         item.status = 'ในคลัง';
                         item.holder = '-';
                         if (note) item.note = noteText;
                     }
                 } else {
-                    // กรณีเบิกไปทั้งหมดของแถวนั้น (ไม่ได้แยกแถว) คืนค่าสถานะปกติ
                     item.status = 'ในคลัง';
                     item.holder = '-';
                     if (note) item.note = noteText;
@@ -1140,11 +1139,42 @@
             XLSX.writeFile(workbook, "Inventory_Database.xlsx");
         }
 
-        function openReportModal() { document.getElementById('reportModal').classList.remove('hidden'); }
-        function closeReportModal() { document.getElementById('reportModal').classList.add('hidden'); }
+        // ==========================================
+        // ส่วนจัดการการพิมพ์รายงานแยกประเภท / รายอุปกรณ์
+        // ==========================================
+        function openReportModal() {
+            // ดึงรายชื่ออุปกรณ์ทั้งหมดที่มี (แบบไม่ซ้ำ) มาใส่ใน Dropdown
+            const eqSelect = document.getElementById('reportEquipment');
+            eqSelect.innerHTML = '<option value="all">-- ทุกอุปกรณ์ --</option>';
+            const uniqueNames = [...new Set(inventory.map(item => item.name))].sort();
+            uniqueNames.forEach(name => {
+                if(name) {
+                    eqSelect.innerHTML += `<option value="${name}">${name}</option>`;
+                }
+            });
+            
+            toggleEquipmentSelect(); // รีเซ็ตการแสดงผลช่องเลือก
+            document.getElementById('reportModal').classList.remove('hidden'); 
+        }
+
+        function closeReportModal() { 
+            document.getElementById('reportModal').classList.add('hidden'); 
+        }
+
+        // เปิด/ปิด ช่องเลือกอุปกรณ์ตามประเภทรายงาน
+        function toggleEquipmentSelect() {
+            const type = document.getElementById('reportType').value;
+            const wrapper = document.getElementById('equipmentSelectWrapper');
+            if (type === 'รายอุปกรณ์') {
+                wrapper.classList.remove('hidden');
+            } else {
+                wrapper.classList.add('hidden');
+            }
+        }
         
         function generatePrintReport() {
             const reportType = document.getElementById('reportType').value;
+            const selectedEq = document.getElementById('reportEquipment').value;
             const todayStr = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
             
             if (inventory.length === 0) {
@@ -1152,26 +1182,45 @@
                 return;
             }
 
+            // คัดกรองข้อมูลหากเป็นการเลือกรายอุปกรณ์
+            let reportData = inventory;
+            let reportTitleSuffix = reportType;
+            
+            if (reportType === 'รายอุปกรณ์') {
+                if (selectedEq !== 'all') {
+                    reportData = inventory.filter(item => item.name === selectedEq);
+                    reportTitleSuffix = `แยกรายอุปกรณ์ (${selectedEq})`;
+                    if (reportData.length === 0) {
+                        alert("⚠️ ไม่มีข้อมูลสำหรับอุปกรณ์ที่เลือก");
+                        return;
+                    }
+                } else {
+                    reportTitleSuffix = `แยกรายอุปกรณ์ (อุปกรณ์ทั้งหมด)`;
+                }
+            }
+
             let totalStock = 0, totalBorrow = 0, totalRepair = 0;
             const groupedByCategory = {};
 
-            inventory.forEach((item) => {
-                const cat = item.category || 'อื่นๆ';
-                if (!groupedByCategory[cat]) {
-                    groupedByCategory[cat] = { items: [], stock: 0, borrow: 0, repair: 0 };
+            reportData.forEach((item) => {
+                // จัดกลุ่มตามชื่ออุปกรณ์ (ถ้าเลือกรายอุปกรณ์) หรือจัดกลุ่มตามหมวดหมู่ (ถ้าเป็นแบบปกติ)
+                const groupKey = reportType === 'รายอุปกรณ์' ? (item.name || 'ไม่มีชื่อ') : (item.category || 'อื่นๆ');
+                
+                if (!groupedByCategory[groupKey]) {
+                    groupedByCategory[groupKey] = { items: [], stock: 0, borrow: 0, repair: 0 };
                 }
                 
-                groupedByCategory[cat].items.push(item);
+                groupedByCategory[groupKey].items.push(item);
 
                 const qty = item.qty || 1;
                 if (item.status === 'ในคลัง') {
-                    groupedByCategory[cat].stock += qty;
+                    groupedByCategory[groupKey].stock += qty;
                     totalStock += qty;
                 } else if (item.status === 'ถูกเบิก') {
-                    groupedByCategory[cat].borrow += qty;
+                    groupedByCategory[groupKey].borrow += qty;
                     totalBorrow += qty;
                 } else if (item.status === 'ส่งซ่อม') {
-                    groupedByCategory[cat].repair += qty;
+                    groupedByCategory[groupKey].repair += qty;
                     totalRepair += qty;
                 }
             });
@@ -1182,10 +1231,11 @@
             for (const cat in groupedByCategory) {
                 const catData = groupedByCategory[cat];
                 const catTotal = catData.stock + catData.borrow + catData.repair;
+                const headerLabel = reportType === 'รายอุปกรณ์' ? 'ชื่ออุปกรณ์' : 'หมวดหมู่';
 
                 contentHtml += `
                     <div class="category-header">
-                        หมวดหมู่: ${cat}
+                        ${headerLabel}: ${cat}
                         <span class="category-summary">
                             รวม ${catTotal} รายการ (ในคลัง: ${catData.stock} | ถูกเบิก: ${catData.borrow} | ส่งซ่อม: ${catData.repair})
                         </span>
@@ -1232,7 +1282,7 @@
             <html lang="th">
             <head>
                 <meta charset="UTF-8">
-                <title>รายงานสรุปสถานะอุปกรณ์ - ${reportType}</title>
+                <title>รายงานสรุปสถานะอุปกรณ์ - ${reportTitleSuffix}</title>
                 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
                 <style>
                     body { font-family: 'Sarabun', sans-serif; padding: 20px; font-size: 14px; color: #000; }
@@ -1286,11 +1336,11 @@
                 </style>
             </head>
             <body>
-                <div class="text-center header-title">รายงานสรุปสถานะอุปกรณ์ (${reportType})</div>
+                <div class="text-center header-title">รายงานสรุปสถานะอุปกรณ์ (${reportTitleSuffix})</div>
                 <div class="text-center header-date">ข้อมูล ณ วันที่ ${todayStr}</div>
 
                 <div class="summary-box">
-                    สรุปภาพรวมทั้งหมด: ${grandTotal} รายการ &nbsp;|&nbsp; 
+                    สรุปภาพรวมในรายงาน: ${grandTotal} รายการ &nbsp;|&nbsp; 
                     พร้อมใช้ในคลัง: ${totalStock} รายการ &nbsp;|&nbsp; 
                     ถูกเบิกใช้งาน: ${totalBorrow} รายการ &nbsp;|&nbsp; 
                     ส่งซ่อม: ${totalRepair} รายการ
@@ -1319,7 +1369,7 @@
                             window.print();
                         }, 500);
                     };
-                <\/script>
+                <` + `/script>
             </body>
             </html>
             `;
