@@ -472,11 +472,212 @@
         // ฟังก์ชั่นออกรายงานพิมพ์ (เอามาจากโค้ดก่อนหน้า)
         function openReportModal() { document.getElementById('reportModal').classList.remove('hidden'); }
         function closeReportModal() { document.getElementById('reportModal').classList.add('hidden'); }
-        function generatePrintReport() {
-            // โค้ดพิมพ์รายงานของคุณ
-            window.print(); // ตัวอย่างย่อ
-            closeReportModal();
+   function generatePrintReport() {
+    const reportType = document.getElementById('reportType').value;
+    const todayStr = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+    
+    if (inventory.length === 0) {
+        alert("⚠️ ไม่มีข้อมูลในระบบสำหรับออกรายงาน");
+        return;
+    }
+
+    // 1. สรุปยอดรวมทั้งหมด (Grand Total)
+    let totalStock = 0, totalBorrow = 0, totalRepair = 0;
+    
+    // 2. จัดกลุ่มข้อมูลตามหมวดหมู่ (Group by Category)
+    const groupedByCategory = {};
+
+    inventory.forEach((item) => {
+        const cat = item.category || 'อื่นๆ';
+        
+        // ถ้ายังไม่มีหมวดหมู่นี้ใน Object ให้สร้างใหม่
+        if (!groupedByCategory[cat]) {
+            groupedByCategory[cat] = {
+                items: [],
+                stock: 0,
+                borrow: 0,
+                repair: 0
+            };
         }
+        
+        // นำอุปกรณ์ใส่เข้าหมวดหมู่
+        groupedByCategory[cat].items.push(item);
+
+        // นับยอด
+        const qty = item.qty || 1;
+        if (item.status === 'ในคลัง') {
+            groupedByCategory[cat].stock += qty;
+            totalStock += qty;
+        } else if (item.status === 'ถูกเบิก') {
+            groupedByCategory[cat].borrow += qty;
+            totalBorrow += qty;
+        } else if (item.status === 'ส่งซ่อม') {
+            groupedByCategory[cat].repair += qty;
+            totalRepair += qty;
+        }
+    });
+
+    const grandTotal = totalStock + totalBorrow + totalRepair;
+    
+    // 3. สร้าง HTML สำหรับตารางที่แยกตามหมวดหมู่
+    let contentHtml = '';
+
+    for (const cat in groupedByCategory) {
+        const catData = groupedByCategory[cat];
+        const catTotal = catData.stock + catData.borrow + catData.repair;
+
+        contentHtml += `
+            <div class="category-header">
+                หมวดหมู่: ${cat}
+                <span class="category-summary">
+                    รวม ${catTotal} รายการ (ในคลัง: ${catData.stock} | ถูกเบิก: ${catData.borrow} | ส่งซ่อม: ${catData.repair})
+                </span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th width="5%">ลำดับ</th>
+                        <th width="15%">รหัส / S/N</th>
+                        <th width="20%">ชื่ออุปกรณ์</th>
+                        <th width="15%">ประเภทย่อย</th>
+                        <th width="10%">จำนวนตั้งต้น</th>
+                        <th width="10%">คงเหลือปัจจุบัน</th>
+                        <th width="10%">สถานะ</th>
+                        <th width="15%">ผู้ถือครอง</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        catData.items.forEach((item, idx) => {
+            contentHtml += `
+                <tr>
+                    <td class="text-center">${idx + 1}</td>
+                    <td>${item.sn || '-'}</td>
+                    <td>${item.name || '-'}</td>
+                    <td>${item.subCategory || '-'}</td>
+                    <td class="text-center">${item.originalQty || item.qty || 1}</td>
+                    <td class="text-center bold">${item.qty || 1}</td>
+                    <td class="text-center">${item.status || '-'}</td>
+                    <td>${item.holder || '-'}</td>
+                </tr>
+            `;
+        });
+
+        contentHtml += `
+                </tbody>
+            </table>
+        `;
+    }
+
+    // 4. สร้างโครงสร้างหน้ากระดาษ HTML เพื่อสั่งพิมพ์
+    const printHtml = `
+    <!DOCTYPE html>
+    <html lang="th">
+    <head>
+        <meta charset="UTF-8">
+        <title>รายงานสรุปสถานะอุปกรณ์ - ${reportType}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+        <style>
+            body { font-family: 'Sarabun', sans-serif; padding: 20px; font-size: 14px; color: #000; }
+            .text-center { text-align: center; }
+            .bold { font-weight: bold; }
+            .header-title { font-size: 20px; font-weight: bold; margin-bottom: 5px; }
+            .header-date { font-size: 14px; margin-bottom: 20px; color: #555; }
+            
+            .summary-box { 
+                border: 2px solid #000; 
+                padding: 10px 15px; 
+                margin-bottom: 20px; 
+                font-size: 15px;
+                font-weight: bold; 
+                background-color: #f9f9f9; 
+                text-align: center;
+            }
+            
+            .category-header { 
+                font-size: 16px; 
+                font-weight: bold; 
+                margin-top: 25px; 
+                margin-bottom: 8px; 
+                border-bottom: 2px solid #000; 
+                padding-bottom: 5px; 
+                color: #1e3a8a;
+            }
+            .category-summary {
+                font-size: 13px;
+                font-weight: normal;
+                float: right;
+                color: #333;
+                margin-top: 3px;
+            }
+            
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            th, td { border: 1px solid #000; padding: 6px 8px; text-align: left; font-size: 13px; }
+            th { background-color: #e5e7eb; text-align: center; }
+            
+            .signature-table { width: 100%; margin-top: 40px; border: none; page-break-inside: avoid; }
+            .signature-table td { border: none; text-align: center; width: 50%; padding: 30px 10px; }
+            .sign-line { display: inline-block; width: 200px; border-bottom: 1px dotted #000; margin-bottom: 5px; }
+            
+            @media print {
+                @page { margin: 1cm; size: A4 portrait; }
+                body { padding: 0; }
+                .category-header { page-break-after: avoid; }
+                table { page-break-inside: auto; }
+                tr { page-break-inside: avoid; page-break-after: auto; }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="text-center header-title">รายงานสรุปสถานะอุปกรณ์ (${reportType})</div>
+        <div class="text-center header-date">ข้อมูล ณ วันที่ ${todayStr}</div>
+
+        <!-- สรุปยอดรวมทั้งหมด -->
+        <div class="summary-box">
+            สรุปภาพรวมทั้งหมด: ${grandTotal} รายการ &nbsp;|&nbsp; 
+            พร้อมใช้ในคลัง: ${totalStock} รายการ &nbsp;|&nbsp; 
+            ถูกเบิกใช้งาน: ${totalBorrow} รายการ &nbsp;|&nbsp; 
+            ส่งซ่อม: ${totalRepair} รายการ
+        </div>
+
+        <!-- เนื้อหาตารางแยกตามหมวดหมู่ -->
+        ${contentHtml}
+
+        <!-- ช่องเซ็นชื่อ -->
+        <table class="signature-table">
+            <tr>
+                <td>
+                    ลงชื่อ....................................................................ผู้จัดทำรายงาน<br><br>
+                    (<span class="sign-line"></span>)<br><br>
+                    ตำแหน่ง....................................................................
+                </td>
+                <td>
+                    ลงชื่อ....................................................................ผู้รับรอง/อนุมัติ<br><br>
+                    (<span class="sign-line"></span>)<br><br>
+                    ตำแหน่ง....................................................................
+                </td>
+            </tr>
+        </table>
+
+        <script>
+            window.onload = function() {
+                setTimeout(function() {
+                    window.print();
+                }, 500);
+            };
+        <\/script>
+    </body>
+    </html>
+    `;
+
+    // เปิดหน้าต่างใหม่เพื่อสั่งพิมพ์
+    const printWin = window.open('', '_blank');
+    printWin.document.open();
+    printWin.document.write(printHtml);
+    printWin.document.close();
+    closeReportModal();
+}
 
     </script>
 </body>
