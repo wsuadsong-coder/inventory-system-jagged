@@ -178,7 +178,7 @@
 
     <!-- ==================== MODALS ==================== -->
     
-    <!-- Modal ออกรายงาน (Print Report) อัปเดตใหม่ -->
+    <!-- Modal ออกรายงาน (Print Report) อัปเดตแยกหมวดหมู่ -->
     <div id="reportModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl">
             <div class="flex justify-between items-center mb-4">
@@ -188,20 +188,20 @@
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">เลือกประเภทรายงาน</label>
-                    <select id="reportType" onchange="toggleEquipmentSelect()" class="w-full px-3 py-2 border rounded-xl text-sm bg-white">
+                    <select id="reportType" onchange="toggleReportFilter()" class="w-full px-3 py-2 border rounded-xl text-sm bg-white">
                         <option value="ภาพรวม">รายงานภาพรวมทั้งหมด (สถานะปัจจุบัน)</option>
                         <option value="ประจำวัน">รายงานสรุปประจำวัน</option>
                         <option value="ประจำเดือน">รายงานสรุปประจำเดือน</option>
                         <option value="ประจำปี">รายงานสรุปประจำปี</option>
-                        <option value="รายอุปกรณ์">รายงานรายอุปกรณ์ (เจาะจงชื่ออุปกรณ์)</option> <!-- เพิ่มตัวเลือกใหม่ -->
+                        <option value="แยกหมวดหมู่">รายงานแยกตามหมวดหมู่</option> <!-- อัปเดตตัวเลือกนี้ -->
                     </select>
                 </div>
 
-                <!-- ส่วนเลือกอุปกรณ์ (ซ่อนไว้ก่อน จะแสดงเมื่อเลือก "รายอุปกรณ์") -->
-                <div id="equipmentSelectWrapper" class="hidden">
-                    <label class="block text-sm font-medium text-slate-700 mb-1">เลือกชื่ออุปกรณ์ที่ต้องการ</label>
-                    <select id="reportEquipment" class="w-full px-3 py-2 border rounded-xl text-sm bg-white">
-                        <!-- รายชื่ออุปกรณ์จะถูกใส่ด้วย Javascript อัตโนมัติ -->
+                <!-- ส่วนเลือกหมวดหมู่ (ซ่อนไว้ก่อน จะแสดงเมื่อเลือก "แยกหมวดหมู่") -->
+                <div id="categorySelectWrapper" class="hidden">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">เลือกหมวดหมู่ที่ต้องการ</label>
+                    <select id="reportCategorySelection" class="w-full px-3 py-2 border rounded-xl text-sm bg-white">
+                        <!-- รายชื่อหมวดหมู่จะถูกใส่ด้วย Javascript อัตโนมัติ -->
                     </select>
                 </div>
 
@@ -808,6 +808,7 @@
             document.getElementById('transactionModal').classList.add('hidden');
         }
 
+        // ฟังก์ชันเบิก-คืน ที่รวมยอดกลับเข้าที่เดิม
         async function executeTransaction(event) {
             event.preventDefault();
             const index = document.getElementById('transIndex').value;
@@ -1140,20 +1141,20 @@
         }
 
         // ==========================================
-        // ส่วนจัดการการพิมพ์รายงานแยกประเภท / รายอุปกรณ์
+        // ส่วนจัดการการพิมพ์รายงานแยกหมวดหมู่
         // ==========================================
         function openReportModal() {
-            // ดึงรายชื่ออุปกรณ์ทั้งหมดที่มี (แบบไม่ซ้ำ) มาใส่ใน Dropdown
-            const eqSelect = document.getElementById('reportEquipment');
-            eqSelect.innerHTML = '<option value="all">-- ทุกอุปกรณ์ --</option>';
-            const uniqueNames = [...new Set(inventory.map(item => item.name))].sort();
-            uniqueNames.forEach(name => {
-                if(name) {
-                    eqSelect.innerHTML += `<option value="${name}">${name}</option>`;
+            // ดึงรายชื่อหมวดหมู่ทั้งหมดที่มีมาใส่ใน Dropdown
+            const catSelect = document.getElementById('reportCategorySelection');
+            catSelect.innerHTML = '<option value="all">-- ทุกหมวดหมู่ --</option>';
+            const uniqueCats = [...new Set(inventory.map(item => item.category || 'อื่นๆ'))].sort();
+            uniqueCats.forEach(cat => {
+                if(cat) {
+                    catSelect.innerHTML += `<option value="${cat}">${cat}</option>`;
                 }
             });
             
-            toggleEquipmentSelect(); // รีเซ็ตการแสดงผลช่องเลือก
+            toggleReportFilter(); 
             document.getElementById('reportModal').classList.remove('hidden'); 
         }
 
@@ -1161,11 +1162,10 @@
             document.getElementById('reportModal').classList.add('hidden'); 
         }
 
-        // เปิด/ปิด ช่องเลือกอุปกรณ์ตามประเภทรายงาน
-        function toggleEquipmentSelect() {
+        function toggleReportFilter() {
             const type = document.getElementById('reportType').value;
-            const wrapper = document.getElementById('equipmentSelectWrapper');
-            if (type === 'รายอุปกรณ์') {
+            const wrapper = document.getElementById('categorySelectWrapper');
+            if (type === 'แยกหมวดหมู่') {
                 wrapper.classList.remove('hidden');
             } else {
                 wrapper.classList.add('hidden');
@@ -1174,7 +1174,7 @@
         
         function generatePrintReport() {
             const reportType = document.getElementById('reportType').value;
-            const selectedEq = document.getElementById('reportEquipment').value;
+            const selectedCat = document.getElementById('reportCategorySelection').value;
             const todayStr = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
             
             if (inventory.length === 0) {
@@ -1182,29 +1182,29 @@
                 return;
             }
 
-            // คัดกรองข้อมูลหากเป็นการเลือกรายอุปกรณ์
             let reportData = inventory;
             let reportTitleSuffix = reportType;
             
-            if (reportType === 'รายอุปกรณ์') {
-                if (selectedEq !== 'all') {
-                    reportData = inventory.filter(item => item.name === selectedEq);
-                    reportTitleSuffix = `แยกรายอุปกรณ์ (${selectedEq})`;
+            if (reportType === 'แยกหมวดหมู่') {
+                if (selectedCat !== 'all') {
+                    reportData = inventory.filter(item => (item.category || 'อื่นๆ') === selectedCat);
+                    reportTitleSuffix = `หมวดหมู่ (${selectedCat})`;
                     if (reportData.length === 0) {
-                        alert("⚠️ ไม่มีข้อมูลสำหรับอุปกรณ์ที่เลือก");
+                        alert("⚠️ ไม่มีข้อมูลสำหรับหมวดหมู่ที่เลือก");
                         return;
                     }
                 } else {
-                    reportTitleSuffix = `แยกรายอุปกรณ์ (อุปกรณ์ทั้งหมด)`;
+                    reportTitleSuffix = `แยกตามหมวดหมู่ (ทั้งหมด)`;
                 }
+            } else if (reportType === 'ภาพรวม') {
+                reportTitleSuffix = `ภาพรวมทั้งหมด`;
             }
 
             let totalStock = 0, totalBorrow = 0, totalRepair = 0;
             const groupedByCategory = {};
 
             reportData.forEach((item) => {
-                // จัดกลุ่มตามชื่ออุปกรณ์ (ถ้าเลือกรายอุปกรณ์) หรือจัดกลุ่มตามหมวดหมู่ (ถ้าเป็นแบบปกติ)
-                const groupKey = reportType === 'รายอุปกรณ์' ? (item.name || 'ไม่มีชื่อ') : (item.category || 'อื่นๆ');
+                const groupKey = item.category || 'อื่นๆ';
                 
                 if (!groupedByCategory[groupKey]) {
                     groupedByCategory[groupKey] = { items: [], stock: 0, borrow: 0, repair: 0 };
@@ -1231,11 +1231,10 @@
             for (const cat in groupedByCategory) {
                 const catData = groupedByCategory[cat];
                 const catTotal = catData.stock + catData.borrow + catData.repair;
-                const headerLabel = reportType === 'รายอุปกรณ์' ? 'ชื่ออุปกรณ์' : 'หมวดหมู่';
 
                 contentHtml += `
                     <div class="category-header">
-                        ${headerLabel}: ${cat}
+                        หมวดหมู่: ${cat}
                         <span class="category-summary">
                             รวม ${catTotal} รายการ (ในคลัง: ${catData.stock} | ถูกเบิก: ${catData.borrow} | ส่งซ่อม: ${catData.repair})
                         </span>
