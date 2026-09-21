@@ -1128,15 +1128,43 @@
                 return;
             }
 
-            const exportData = inventory.map((item, idx) => ({
+            // สร้างสมุดงาน (Workbook) ใหม่
+            const workbook = XLSX.utils.book_new();
+
+            // 1. สร้าง Sheet แรก "รวมทั้งหมด" (ภาพรวม)
+            const allExportData = inventory.map((item, idx) => ({
                 'ลำดับ': idx + 1, 'รหัส / S/N': item.sn, 'ชื่ออุปกรณ์': item.name, 'หมวดหมู่หลัก': item.category, 
                 'หมวดหมู่ย่อย': item.subCategory, 'ยี่ห้อ': item.brand, 'รุ่น': item.model, 'จำนวน': item.qty || 1, 
                 'สถานะ': item.status, 'ผู้ถือครองปัจจุบัน': item.holder, 'รับมาเมื่อ': item.receivedDate, 'หมายเหตุ': item.note
             }));
+            const wsAll = XLSX.utils.json_to_sheet(allExportData);
+            XLSX.utils.book_append_sheet(workbook, wsAll, "รวมทั้งหมด");
 
-            const worksheet = XLSX.utils.json_to_sheet(exportData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Inventory");
+            // 2. จัดกลุ่มข้อมูลตามหมวดหมู่
+            const groupedByCategory = {};
+            inventory.forEach(item => {
+                const cat = item.category || 'อื่นๆ';
+                if (!groupedByCategory[cat]) {
+                    groupedByCategory[cat] = [];
+                }
+                groupedByCategory[cat].push(item);
+            });
+
+            // 3. สร้าง Sheet แยกสำหรับแต่ละหมวดหมู่
+            for (const cat in groupedByCategory) {
+                const catExportData = groupedByCategory[cat].map((item, idx) => ({
+                    'ลำดับ': idx + 1, 'รหัส / S/N': item.sn, 'ชื่ออุปกรณ์': item.name, 'หมวดหมู่ย่อย': item.subCategory, 
+                    'ยี่ห้อ': item.brand, 'รุ่น': item.model, 'จำนวน': item.qty || 1, 
+                    'สถานะ': item.status, 'ผู้ถือครองปัจจุบัน': item.holder, 'รับมาเมื่อ': item.receivedDate, 'หมายเหตุ': item.note
+                }));
+                const wsCat = XLSX.utils.json_to_sheet(catExportData);
+                
+                // ตั้งชื่อชีทตามหมวดหมู่ เช่น "โทรศัพท์", "กล้อง" (ตัดตัวอักษรไม่เกิน 31 ตัวตามข้อจำกัดของ Excel)
+                const safeSheetName = cat.substring(0, 31);
+                XLSX.utils.book_append_sheet(workbook, wsCat, safeSheetName);
+            }
+
+            // บันทึกและโหลดไฟล์
             XLSX.writeFile(workbook, "Inventory_Database.xlsx");
         }
 
