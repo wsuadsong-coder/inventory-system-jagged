@@ -272,8 +272,8 @@
     </div>
 
     <!-- Modal เพิ่ม/แก้ไข อุปกรณ์ -->
-    <div id="itemModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
+    <div id="itemModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl m-auto">
             <h3 id="modalTitle" class="text-lg font-bold mb-4 text-blue-600">เพิ่มอุปกรณ์ใหม่</h3>
             <form id="itemForm" onsubmit="saveItem(event)">
                 <input type="hidden" id="itemIndex">
@@ -326,6 +326,12 @@
                             </select>
                         </div>
                     </div>
+                    <!-- ส่วนอัพเดทใหม่: เพิ่มลิงก์รูปภาพ -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">ลิงก์รูปภาพ (Image URL)</label>
+                        <input type="text" id="itemImageUrl" placeholder="https://..." class="w-full px-3 py-2 border rounded-xl text-sm">
+                    </div>
+                    
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">รับมาเมื่อ</label>
                         <input type="text" id="itemReceivedDate" class="w-full px-3 py-2 border rounded-xl text-sm">
@@ -437,13 +443,19 @@
         </div>
     </div>
 
-    <!-- Modal QR Code -->
-    <div id="qrModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-2xl max-w-xs w-full p-6 text-center shadow-xl">
-            <h3 class="font-bold text-slate-800 mb-1">QR Code</h3>
+    <!-- Modal QR Code & รูปภาพ (ส่วนที่มีการอัพเดท) -->
+    <div id="qrModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 text-center shadow-xl m-auto">
+            <h3 class="font-bold text-slate-800 mb-1">ข้อมูล & QR Code</h3>
             <p id="qrItemName" class="text-xs text-slate-500 mb-4"></p>
+            
+            <!-- ส่วนแสดงรูปภาพ (ถ้ามีลิงก์) -->
+            <div id="qrImageContainer" class="flex justify-center mb-4 hidden">
+                <img id="qrItemImage" src="" alt="Equipment" class="max-h-56 rounded-xl object-contain border border-slate-200 p-1 shadow-sm bg-slate-50">
+            </div>
+
             <div id="qrcode" class="flex justify-center p-4 bg-slate-50 border rounded-xl mb-4"></div>
-            <button onclick="closeQrModal()" class="w-full py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-medium">ปิด</button>
+            <button onclick="closeQrModal()" class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium">ปิดหน้าต่าง</button>
         </div>
     </div>
 
@@ -635,6 +647,7 @@
             document.getElementById('itemModel').value = "";
             document.getElementById('itemQty').value = "1";
             document.getElementById('itemStatus').value = "ในคลัง";
+            document.getElementById('itemImageUrl').value = ""; // เคลียร์ฟิลด์รูปภาพ
             document.getElementById('itemReceivedDate').value = "";
             document.getElementById('itemNote').value = "";
             document.getElementById('itemModal').classList.remove('hidden');
@@ -652,6 +665,7 @@
             document.getElementById('itemModel').value = item.model || "";
             document.getElementById('itemQty').value = item.qty || 1;
             document.getElementById('itemStatus').value = item.status || "ในคลัง";
+            document.getElementById('itemImageUrl').value = item.imageUrl || ""; // โหลดรูปภาพ
             document.getElementById('itemReceivedDate').value = item.receivedDate || "";
             document.getElementById('itemNote').value = item.note || "";
             document.getElementById('itemModal').classList.remove('hidden');
@@ -686,13 +700,14 @@
             const model = document.getElementById('itemModel').value.trim();
             const qty = parseInt(document.getElementById('itemQty').value) || 1;
             const status = document.getElementById('itemStatus').value;
+            const imageUrl = document.getElementById('itemImageUrl').value.trim(); // รับค่าลิงก์รูป
             const receivedDate = document.getElementById('itemReceivedDate').value.trim() || new Date().toLocaleDateString('th-TH');
             const note = document.getElementById('itemNote').value.trim();
 
             if (index === "") {
                 const sns = snInput.split(',').map(s => s.trim()).filter(s => s !== "");
                 sns.forEach(sn => {
-                    inventory.push({ sn, name, category, subCategory, brand, model, qty, originalQty: qty, status, holder: status === 'ถูกเบิก' ? (currentUser ? currentUser.username : '-') : '-', receivedDate, note });
+                    inventory.push({ sn, name, category, subCategory, brand, model, qty, originalQty: qty, status, imageUrl, holder: status === 'ถูกเบิก' ? (currentUser ? currentUser.username : '-') : '-', receivedDate, note });
                 });
             } else {
                 inventory[index].sn = snInput;
@@ -704,6 +719,7 @@
                 inventory[index].qty = qty;
                 if (!inventory[index].originalQty) inventory[index].originalQty = qty;
                 inventory[index].status = status;
+                inventory[index].imageUrl = imageUrl;
                 inventory[index].receivedDate = receivedDate;
                 inventory[index].note = note;
             }
@@ -783,7 +799,6 @@
             const qtyInput = document.getElementById('transQty');
             const qtyWrapper = document.getElementById('borrowQtyWrapper');
             
-            // เปิดให้แก้ไขจำนวนเสมอ ทั้งเบิก และ คืน
             qtyWrapper.style.display = 'block';
             qtyInput.max = item.qty || 1;
             qtyInput.value = 1;
@@ -837,14 +852,12 @@
                     const borrowedItem = {
                         sn: item.sn + ' (เบิก)', name: item.name, category: item.category, subCategory: item.subCategory, 
                         brand: item.brand, model: item.model, qty: transQty, originalQty: item.originalQty, status: 'ถูกเบิก', 
-                        holder: name, receivedDate: item.receivedDate, note: note ? note : item.note
+                        imageUrl: item.imageUrl, holder: name, receivedDate: item.receivedDate, note: note ? note : item.note
                     };
                     inventory.push(borrowedItem);
                 }
             } else {
-                // คืนอุปกรณ์ (รองรับการคืนบางส่วน และ คืนทั้งหมด)
                 const noteText = 'คืนจาก: ' + name + (note ? ' (' + note + ')' : '');
-                
                 let originalSn = item.sn;
                 let isSplitBorrow = false;
 
@@ -856,7 +869,6 @@
                 const originalItem = inventory.find(x => x.sn === originalSn && x.name === item.name && x.status === 'ในคลัง');
 
                 if (transQty === currentQty) {
-                    // คืนทั้งหมดของรายการนี้
                     if (isSplitBorrow && originalItem) {
                         originalItem.qty += transQty;
                         if (note) originalItem.note = noteText;
@@ -868,8 +880,7 @@
                         if (note) item.note = noteText;
                     }
                 } else {
-                    // คืนแค่บางส่วน (Partial Return)
-                    item.qty -= transQty; // ลดจำนวนเบิกลง
+                    item.qty -= transQty; 
                     
                     if (isSplitBorrow && originalItem) {
                         originalItem.qty += transQty;
@@ -878,7 +889,7 @@
                         const returnedItem = {
                             sn: originalSn, name: item.name, category: item.category, subCategory: item.subCategory, 
                             brand: item.brand, model: item.model, qty: transQty, originalQty: item.originalQty, status: 'ในคลัง', 
-                            holder: '-', receivedDate: item.receivedDate, note: noteText
+                            imageUrl: item.imageUrl, holder: '-', receivedDate: item.receivedDate, note: noteText
                         };
                         inventory.push(returnedItem);
                     }
@@ -932,7 +943,10 @@
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50 transition border-b">
                         <td class="p-4 text-slate-400 text-xs">${originalIndex + 1}</td>
-                        <td class="p-4 font-mono font-bold text-blue-600 cursor-pointer underline" onclick="showQrCode('${item.sn}', '${item.name}')">${item.sn || '-'}</td>
+                        <!-- เพิ่ม onclick เรียก showQrInfo แทน showQrCode และส่ง index -->
+                        <td class="p-4 font-mono font-bold text-blue-600 cursor-pointer hover:text-blue-800 underline" onclick="showQrInfo(${realIndex})">
+                            ${item.imageUrl ? '🖼️ ' : ''}${item.sn || '-'}
+                        </td>
                         <td class="p-4 font-semibold text-slate-800">${item.name || '-'}</td>
                         <td class="p-4"><span class="px-2.5 py-1 bg-slate-100 rounded-lg text-xs font-medium text-slate-600">${item.category || '-'}</span><br><span class="text-[11px] text-blue-500 font-medium">${item.subCategory || '-'}</span></td>
                         <td class="p-4 text-xs text-slate-600">${item.brand || '-'} ${item.model || ''}</td>
@@ -1023,11 +1037,26 @@
             renderTable();
         }
 
-        function showQrCode(sn, name) {
-            document.getElementById('qrItemName').innerText = `${name} (${sn})`;
+        // --- ฟังก์ชันอัพเดทใหม่สำหรับแสดงรูปภาพพร้อม QR Code ---
+        function showQrInfo(index) {
+            const item = inventory[index];
+            document.getElementById('qrItemName').innerText = `${item.name} (${item.sn})`;
+            
+            const imgContainer = document.getElementById('qrImageContainer');
+            const imgElement = document.getElementById('qrItemImage');
+            
+            // เช็คว่ามีรูปลิงก์ไว้หรือไม่
+            if (item.imageUrl && item.imageUrl.trim() !== '') {
+                imgElement.src = item.imageUrl;
+                imgContainer.classList.remove('hidden');
+            } else {
+                imgElement.src = '';
+                imgContainer.classList.add('hidden');
+            }
+
             const container = document.getElementById('qrcode');
             container.innerHTML = '';
-            new QRCode(container, { text: sn || 'NO-SN', width: 150, height: 150 });
+            new QRCode(container, { text: item.sn || 'NO-SN', width: 150, height: 150 });
             document.getElementById('qrModal').classList.remove('hidden');
         }
 
@@ -1121,9 +1150,10 @@
                         const model = row['รุ่น'] || row['Model'] || '';
                         const qty = parseInt(row['จำนวน'] || row['Qty'] || row['qty']) || 1;
                         const note = row['หมายเหตุ'] || row['Note'] || '';
+                        const imageUrl = row['ลิงก์รูปภาพ'] || row['Image'] || row['imageUrl'] || ''; // เพิ่มรองรับลิงก์รูปตอนนำเข้า
 
                         if (sn) {
-                            inventory.push({ sn: String(sn), name: String(name), category: category, subCategory: String(subCategory), brand: String(brand), model: String(model), qty: qty, originalQty: qty, status: 'ในคลัง', holder: '-', receivedDate: new Date().toLocaleDateString('th-TH'), note: String(note) });
+                            inventory.push({ sn: String(sn), name: String(name), category: category, subCategory: String(subCategory), brand: String(brand), model: String(model), qty: qty, originalQty: qty, status: 'ในคลัง', imageUrl: String(imageUrl), holder: '-', receivedDate: new Date().toLocaleDateString('th-TH'), note: String(note) });
                             count++;
                         }
                     });
@@ -1141,7 +1171,6 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // ฟังก์ชัน Export ไปยัง Excel แบบแยก Sheet และมี Sheet รวม
         function exportToExcel() {
             if (inventory.length === 0) {
                 alert("⚠️ ไม่มีข้อมูลสำหรับส่งออก");
@@ -1153,7 +1182,7 @@
             const allExportData = inventory.map((item, idx) => ({
                 'ลำดับ': idx + 1, 'รหัส / S/N': item.sn, 'ชื่ออุปกรณ์': item.name, 'หมวดหมู่หลัก': item.category, 
                 'หมวดหมู่ย่อย': item.subCategory, 'ยี่ห้อ': item.brand, 'รุ่น': item.model, 'จำนวน': item.qty || 1, 
-                'สถานะ': item.status, 'ผู้ถือครอง': item.holder, 'รับมาเมื่อ': item.receivedDate, 'หมายเหตุ': item.note
+                'ลิงก์รูปภาพ': item.imageUrl || '', 'สถานะ': item.status, 'ผู้ถือครอง': item.holder, 'รับมาเมื่อ': item.receivedDate, 'หมายเหตุ': item.note
             }));
             const wsAll = XLSX.utils.json_to_sheet(allExportData);
             XLSX.utils.book_append_sheet(workbook, wsAll, "รวมทั้งหมด");
@@ -1170,7 +1199,7 @@
             for (const cat in groupedByCategory) {
                 const catExportData = groupedByCategory[cat].map((item, idx) => ({
                     'ลำดับ': idx + 1, 'รหัส / S/N': item.sn, 'ชื่ออุปกรณ์': item.name, 'หมวดหมู่ย่อย': item.subCategory, 
-                    'ยี่ห้อ': item.brand, 'รุ่น': item.model, 'จำนวน': item.qty || 1, 
+                    'ยี่ห้อ': item.brand, 'รุ่น': item.model, 'จำนวน': item.qty || 1, 'ลิงก์รูปภาพ': item.imageUrl || '',
                     'สถานะ': item.status, 'ผู้ถือครอง': item.holder, 'รับมาเมื่อ': item.receivedDate, 'หมายเหตุ': item.note
                 }));
                 const wsCat = XLSX.utils.json_to_sheet(catExportData);
@@ -1406,7 +1435,7 @@
                             window.print();
                         }, 500);
                     };
-                <` + `/script>
+                <\/script>
             </body>
             </html>
             `;
